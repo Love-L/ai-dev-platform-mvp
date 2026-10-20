@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 /**
  * L4 CDP 测试专用配置。
@@ -15,10 +15,10 @@ export default defineConfig({
   test: {
     globals: true,
     // 用例通过 CDP 与真实应用通信，使用 node 环境
-    environment: 'node',
-    include: ['tests/l4-cdp/**/*.test.ts'],
+    environment: "node",
+    include: ["tests/l4-cdp/**/*.test.ts"],
     testTimeout: 30000,
     hookTimeout: 30000,
-    reporters: ['verbose'],
+    reporters: ["verbose"],
   },
 });

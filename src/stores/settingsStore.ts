@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { getSetting, setSetting } from '../lib/tauri';
+import { create } from "zustand";
+import { getSetting, setSetting } from "../lib/tauri";
 
 interface SettingsState {
   settings: Record<string, string>;
@@ -20,7 +20,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     try {
       const value = await getSetting(key);
       set((state) => ({
-        settings: { ...state.settings, [key]: value || '' },
+        settings: { ...state.settings, [key]: value || "" },
         loading: false,
       }));
     } catch (e) {
@@ -34,8 +34,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       const entries = await Promise.all(
         keys.map(async (key) => {
           const value = await getSetting(key);
-          return [key, value || ''] as const;
-        })
+          return [key, value || ""] as const;
+        }),
       );
       set((state) => ({
         settings: { ...state.settings, ...Object.fromEntries(entries) },

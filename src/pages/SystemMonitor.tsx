@@ -90,9 +90,7 @@ export default function SystemMonitor() {
           <p className="text-sm text-gray-500 mt-0.5">实时系统资源使用情况</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-400">
-            上次刷新: {lastRefresh.toLocaleTimeString()}
-          </span>
+          <span className="text-xs text-gray-400">上次刷新: {lastRefresh.toLocaleTimeString()}</span>
           <button
             onClick={fetchData}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -159,14 +157,16 @@ export default function SystemMonitor() {
             <div className="w-full bg-gray-100 rounded-full h-2">
               <div
                 className={`h-2 rounded-full transition-all duration-500 ${
-                  data.memory_usage_percent > 80 ? "bg-red-500" : data.memory_usage_percent > 50 ? "bg-yellow-500" : "bg-purple-500"
+                  data.memory_usage_percent > 80
+                    ? "bg-red-500"
+                    : data.memory_usage_percent > 50
+                      ? "bg-yellow-500"
+                      : "bg-purple-500"
                 }`}
                 style={{ width: `${Math.min(data.memory_usage_percent, 100)}%` }}
               />
             </div>
-            <p className="text-xs text-gray-400 mt-2">
-              应用内存: {data.memory_used_mb} MB
-            </p>
+            <p className="text-xs text-gray-400 mt-2">应用内存: {data.memory_used_mb} MB</p>
           </div>
 
           {/* Uptime & Sessions */}
@@ -226,9 +226,7 @@ export default function SystemMonitor() {
               </div>
               <div>
                 <p className="text-xs text-gray-500">状态</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {cacheStats.enabled ? "已启用" : "已禁用"}
-                </p>
+                <p className="text-lg font-semibold text-gray-900">{cacheStats.enabled ? "已启用" : "已禁用"}</p>
               </div>
             </div>
           ) : (
@@ -261,9 +259,7 @@ export default function SystemMonitor() {
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">设备内存</span>
               <span className="text-gray-700">
-                {(navigator as any).deviceMemory
-                  ? `${(navigator as any).deviceMemory} GB`
-                  : "未知"}
+                {(navigator as any).deviceMemory ? `${(navigator as any).deviceMemory} GB` : "未知"}
               </span>
             </div>
           </div>

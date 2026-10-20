@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface PaginationProps {
   currentPage: number;
@@ -19,7 +19,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
 
       // Show ellipsis or pages around current
       if (currentPage > 3) {
-        pages.push('...');
+        pages.push("...");
       }
 
       // Show pages around current
@@ -30,7 +30,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
       }
 
       if (currentPage < totalPages - 2) {
-        pages.push('...');
+        pages.push("...");
       }
 
       // Always show last page
@@ -54,15 +54,13 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
         <ChevronLeft className="w-4 h-4" />
       </button>
 
-      {getPageNumbers().map((page, index) => (
-        typeof page === 'number' ? (
+      {getPageNumbers().map((page, index) =>
+        typeof page === "number" ? (
           <button
             key={index}
             onClick={() => onPageChange(page)}
             className={`w-8 h-8 rounded text-sm ${
-              currentPage === page
-                ? 'bg-blue-600 text-white'
-                : 'hover:bg-gray-100 text-gray-700'
+              currentPage === page ? "bg-blue-600 text-white" : "hover:bg-gray-100 text-gray-700"
             }`}
           >
             {page}
@@ -71,8 +69,8 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
           <span key={index} className="px-1 text-gray-400">
             {page}
           </span>
-        )
-      ))}
+        ),
+      )}
 
       <button
         onClick={() => onPageChange(currentPage + 1)}

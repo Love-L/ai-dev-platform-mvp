@@ -6,7 +6,11 @@ export function CardSkeleton() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="rounded-xl p-6"
-      style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-sm)" }}
+      style={{
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+        boxShadow: "var(--shadow-sm)",
+      }}
     >
       <div className="animate-pulse">
         <div className="flex items-center gap-4 mb-4">
@@ -32,7 +36,11 @@ export function StatCardSkeleton() {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       className="rounded-xl p-6"
-      style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-sm)" }}
+      style={{
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+        boxShadow: "var(--shadow-sm)",
+      }}
     >
       <div className="animate-pulse">
         <div className="flex items-center gap-4">

@@ -2,7 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Edit3, Copy, Zap, FileText, ChevronDown, ChevronUp, X, Save, Activity } from "lucide-react";
 import type { PrdSkill } from "../lib/types";
-import { listPrdSkills, createPrdSkill, updatePrdSkill, deletePrdSkill, createCustomSkillFromBuiltin } from "../lib/tauri";
+import {
+  listPrdSkills,
+  createPrdSkill,
+  updatePrdSkill,
+  deletePrdSkill,
+  createCustomSkillFromBuiltin,
+} from "../lib/tauri";
 import { showToast } from "../components/Toast";
 
 export default function SkillManagement() {
@@ -45,12 +51,7 @@ export default function SkillManagement() {
     if (!formData.name.trim() || !formData.template.trim()) return;
     setSaving(true);
     try {
-      await createPrdSkill(
-        formData.name,
-        formData.skill_type,
-        formData.description || null,
-        formData.template
-      );
+      await createPrdSkill(formData.name, formData.skill_type, formData.description || null, formData.template);
       setShowCreateModal(false);
       setFormData({ name: "", skill_type: "feature", description: "", template: "" });
       showToast("success", "Skill创建成功");
@@ -71,7 +72,7 @@ export default function SkillManagement() {
         selectedSkill.id,
         formData.name || null,
         formData.description || null,
-        formData.template || null
+        formData.template || null,
       );
       setShowEditModal(false);
       setSelectedSkill(null);
@@ -174,9 +175,11 @@ export default function SkillManagement() {
                 onClick={() => setExpandedSkill(expandedSkill === skill.id ? null : skill.id)}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    skill.is_builtin ? "bg-blue-50" : "bg-purple-50"
-                  }`}>
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      skill.is_builtin ? "bg-blue-50" : "bg-purple-50"
+                    }`}
+                  >
                     {skill.is_builtin ? (
                       <Zap className="w-5 h-5 text-blue-600" />
                     ) : (
@@ -190,9 +193,7 @@ export default function SkillManagement() {
                         {skill.skill_type}
                       </span>
                       {skill.is_builtin && (
-                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded">
-                          内置
-                        </span>
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded">内置</span>
                       )}
                       {skill.version && skill.version > 1 && (
                         <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-medium rounded">
@@ -205,9 +206,7 @@ export default function SkillManagement() {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {skill.description || "无描述"}
-                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">{skill.description || "无描述"}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -428,9 +427,7 @@ export default function SkillManagement() {
           <div className="bg-white rounded-xl w-full max-w-md overflow-hidden">
             <div className="px-6 py-4">
               <h2 className="text-lg font-semibold">删除 Skill</h2>
-              <p className="text-sm text-gray-500 mt-2">
-                确定要删除 Skill "{selectedSkill.name}" 吗？此操作不可撤销。
-              </p>
+              <p className="text-sm text-gray-500 mt-2">确定要删除 Skill "{selectedSkill.name}" 吗？此操作不可撤销。</p>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50">
               <button

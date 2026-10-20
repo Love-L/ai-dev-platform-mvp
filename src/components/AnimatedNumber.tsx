@@ -28,17 +28,7 @@ export default function AnimatedNumber({
 
   return (
     <span className={className}>
-      {start ? (
-        <CountUp
-          end={value}
-          duration={duration}
-          separator={separator}
-          prefix={prefix}
-          suffix={suffix}
-        />
-      ) : (
-        "0"
-      )}
+      {start ? <CountUp end={value} duration={duration} separator={separator} prefix={prefix} suffix={suffix} /> : "0"}
     </span>
   );
 }

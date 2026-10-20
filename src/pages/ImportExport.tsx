@@ -132,14 +132,20 @@ export default function ImportExport() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>数据导入导出</h1>
-        <p className="mt-0.5" style={{ color: "var(--color-text-tertiary)", fontSize: "13px" }}>备份和恢复平台数据</p>
+        <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>
+          数据导入导出
+        </h1>
+        <p className="mt-0.5" style={{ color: "var(--color-text-tertiary)", fontSize: "13px" }}>
+          备份和恢复平台数据
+        </p>
       </div>
 
       {/* 当前数据量 */}
       <div className="card">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-sm font-medium" style={{ color: "var(--color-text)" }}>当前数据量</h2>
+          <h2 className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
+            当前数据量
+          </h2>
           <button onClick={() => void loadCounts()} className="btn-secondary text-xs px-3 py-1.5">
             <RefreshCw className="w-3.5 h-3.5" />
             刷新
@@ -157,7 +163,9 @@ export default function ImportExport() {
                   style={{ background: "var(--color-primary-subtle)", fontSize: "13px" }}
                 >
                   <span style={{ color: "var(--color-text-secondary)" }}>{item.label}</span>
-                  <span className="ml-2 font-semibold" style={{ color: "var(--color-text)" }}>{item.value}</span>
+                  <span className="ml-2 font-semibold" style={{ color: "var(--color-text)" }}>
+                    {item.value}
+                  </span>
                 </div>
               ))}
             </div>
@@ -176,14 +184,20 @@ export default function ImportExport() {
               <Download className="w-6 h-6" style={{ color: "var(--color-primary)" }} />
             </div>
             <div>
-              <h2 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>导出数据</h2>
+              <h2 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>
+                导出数据
+              </h2>
               <p style={{ color: "var(--color-text-tertiary)", fontSize: "13px" }}>将平台全量数据导出为 JSON 文件</p>
             </div>
           </div>
 
           <div className="space-y-3 mb-6">
             {["项目 / 需求 / 任务", "Skill 与 MCP 配置", "执行日志与审计记录", "Token 与预算数据"].map((label) => (
-              <div key={label} className="flex items-center gap-2" style={{ color: "var(--color-text-secondary)", fontSize: "13px" }}>
+              <div
+                key={label}
+                className="flex items-center gap-2"
+                style={{ color: "var(--color-text-secondary)", fontSize: "13px" }}
+              >
                 <CheckCircle className="w-4 h-4" style={{ color: "var(--color-success)" }} />
                 <span>{label}</span>
               </div>
@@ -206,7 +220,9 @@ export default function ImportExport() {
               <Upload className="w-6 h-6" style={{ color: "var(--color-primary)" }} />
             </div>
             <div>
-              <h2 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>导入数据</h2>
+              <h2 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>
+                导入数据
+              </h2>
               <p style={{ color: "var(--color-text-tertiary)", fontSize: "13px" }}>从 JSON 文件恢复平台数据</p>
             </div>
           </div>
@@ -220,12 +236,11 @@ export default function ImportExport() {
               <AlertCircle className="w-4 h-4" style={{ color: "var(--color-warning)" }} />
               <span>导入前会自动备份当前数据库</span>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer" style={{ color: "var(--color-text-secondary)", fontSize: "13px" }}>
-              <input
-                type="checkbox"
-                checked={replaceMode}
-                onChange={(e) => setReplaceMode(e.target.checked)}
-              />
+            <label
+              className="flex items-center gap-2 cursor-pointer"
+              style={{ color: "var(--color-text-secondary)", fontSize: "13px" }}
+            >
+              <input type="checkbox" checked={replaceMode} onChange={(e) => setReplaceMode(e.target.checked)} />
               <span>完全恢复模式（先清空目标表再写入）</span>
             </label>
           </div>
@@ -233,13 +248,7 @@ export default function ImportExport() {
           <label className="w-full btn-secondary cursor-pointer flex items-center justify-center gap-2">
             <Upload className="w-4 h-4" />
             {importing ? "解析中..." : "选择文件导入"}
-            <input
-              type="file"
-              accept=".json"
-              onChange={handleFileSelected}
-              className="hidden"
-              disabled={importing}
-            />
+            <input type="file" accept=".json" onChange={handleFileSelected} className="hidden" disabled={importing} />
           </label>
         </div>
       </div>
@@ -251,14 +260,19 @@ export default function ImportExport() {
             确认导入：{pending.fileName}
           </h3>
           <p className="mb-3" style={{ color: "var(--color-text-secondary)", fontSize: "13px" }}>
-            模式：{replaceMode ? "完全恢复（先清空目标表）" : "合并（按主键覆盖）"}；共 {pending.preview.total_incoming ?? 0} 条待写入记录。
+            模式：{replaceMode ? "完全恢复（先清空目标表）" : "合并（按主键覆盖）"}；共{" "}
+            {pending.preview.total_incoming ?? 0} 条待写入记录。
           </p>
           <div className="flex flex-wrap gap-2 mb-4">
             {formatCounts(pending.preview.incoming).map((item) => (
               <span
                 key={item.key}
                 className="px-2 py-1 rounded"
-                style={{ background: "var(--color-primary-subtle)", fontSize: "12px", color: "var(--color-text-secondary)" }}
+                style={{
+                  background: "var(--color-primary-subtle)",
+                  fontSize: "12px",
+                  color: "var(--color-text-secondary)",
+                }}
               >
                 {item.label} +{item.value}
               </span>

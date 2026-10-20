@@ -1,5 +1,5 @@
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
@@ -10,8 +10,8 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'jsdom',
-    setupFiles: ['src/test/setup.ts'],
+    environment: "jsdom",
+    setupFiles: ["src/test/setup.ts"],
     css: false,
     testTimeout: 10000,
     hookTimeout: 10000,
@@ -19,7 +19,7 @@ export default defineConfig({
     // `@tauri-apps/api/core` 的 mock 泄漏到其它文件，导致
     // "Cannot read properties of undefined (reading 'items')" 等假失败。
     isolate: true,
-    reporters: ['verbose'],
+    reporters: ["verbose"],
     /**
      * 只收集 Vitest 可执行的用例，显式排除 Playwright / CDP 用例，
      * 避免 `npm test` 误收集 e2e 文件导致"文件内无用例"报错。
@@ -30,17 +30,11 @@ export default defineConfig({
      * 例如：`subst X: "<project>" && cd /d X:\ && npm run test:l1`。
      */
     include: [
-      'src/**/*.{test,spec}.{ts,tsx}',
-      'tests/l3-fullstack/**/*.test.ts',
-      'tests/l5-chaos/**/*.test.ts',
-      'tests/l6-ipc/**/*.test.ts',
+      "src/**/*.{test,spec}.{ts,tsx}",
+      "tests/l3-fullstack/**/*.test.ts",
+      "tests/l5-chaos/**/*.test.ts",
+      "tests/l6-ipc/**/*.test.ts",
     ],
-    exclude: [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/target/**',
-      'tests/e2e/**',
-      'tests/l4-cdp/**',
-    ],
+    exclude: ["**/node_modules/**", "**/dist/**", "**/target/**", "tests/e2e/**", "tests/l4-cdp/**"],
   },
 });

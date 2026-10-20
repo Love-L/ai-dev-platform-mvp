@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, MessageSquare, Play, Send, Trash2, Clock, User, Tag,
-  Pencil, FileText, ExternalLink,
+  ArrowLeft,
+  MessageSquare,
+  Play,
+  Send,
+  Trash2,
+  Clock,
+  User,
+  Tag,
+  Pencil,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
 import type { Task, TaskComment, Requirement } from "../lib/types";
 import {
@@ -193,10 +202,7 @@ export default function TaskDetail() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <div className="text-sm text-gray-500">任务不存在</div>
-        <button
-          onClick={() => navigate("/board")}
-          className="text-sm text-blue-600 hover:text-blue-700"
-        >
+        <button onClick={() => navigate("/board")} className="text-sm text-blue-600 hover:text-blue-700">
           返回看板
         </button>
       </div>
@@ -207,10 +213,7 @@ export default function TaskDetail() {
     <div className="p-6 h-full flex flex-col">
       {/* 头部 */}
       <div className="flex items-center gap-3 mb-6">
-        <button
-          onClick={() => navigate("/board")}
-          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
-        >
+        <button onClick={() => navigate("/board")} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1">
@@ -221,11 +224,7 @@ export default function TaskDetail() {
             <StatusBadge status={task.status} />
           </div>
         </div>
-        <button
-          onClick={() => setShowEdit(true)}
-          className="btn-secondary text-sm"
-          title="编辑任务内容（标题/描述等）"
-        >
+        <button onClick={() => setShowEdit(true)} className="btn-secondary text-sm" title="编辑任务内容（标题/描述等）">
           <Pencil className="w-4 h-4" />
           编辑
         </button>
@@ -235,11 +234,7 @@ export default function TaskDetail() {
           className="btn-primary text-sm"
           title="以消息模式启动 Claude 会话，任务标题/描述/所属需求将作为上下文注入"
         >
-          {startingSession ? (
-            <Clock className="w-4 h-4 animate-spin" />
-          ) : (
-            <Play className="w-4 h-4" />
-          )}
+          {startingSession ? <Clock className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
           {startingSession ? "启动中..." : "启动 Claude 会话"}
         </button>
       </div>
@@ -259,9 +254,7 @@ export default function TaskDetail() {
               </button>
             </div>
             <div className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 rounded-lg p-4 min-h-[56px]">
-              {task.description || (
-                <span className="text-gray-400">暂无描述，点击「编辑内容」补充任务详情…</span>
-              )}
+              {task.description || <span className="text-gray-400">暂无描述，点击「编辑内容」补充任务详情…</span>}
             </div>
           </div>
 
@@ -284,8 +277,7 @@ export default function TaskDetail() {
                       </button>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      优先级 {sourceReq.priority} · 状态{" "}
-                      {REQ_STATUS_LABEL[sourceReq.status] ?? sourceReq.status}
+                      优先级 {sourceReq.priority} · 状态 {REQ_STATUS_LABEL[sourceReq.status] ?? sourceReq.status}
                     </p>
                     {(sourceReq.description || sourceReq.prd_content) && (
                       <div className="mt-2 text-sm text-gray-600 whitespace-pre-wrap max-h-64 overflow-y-auto">
@@ -310,19 +302,12 @@ export default function TaskDetail() {
             {/* 评论列表 */}
             <div className="space-y-3 mb-4">
               {comments.map((comment) => (
-                <div
-                  key={comment.id}
-                  className="bg-gray-50 rounded-lg p-3 group"
-                >
+                <div key={comment.id} className="bg-gray-50 rounded-lg p-3 group">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <User className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="text-xs font-medium text-gray-700">
-                        {comment.author}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {new Date(comment.created_at).toLocaleString()}
-                      </span>
+                      <span className="text-xs font-medium text-gray-700">{comment.author}</span>
+                      <span className="text-xs text-gray-400">{new Date(comment.created_at).toLocaleString()}</span>
                     </div>
                     <button
                       onClick={() => handleDeleteComment(comment.id)}
@@ -331,17 +316,11 @@ export default function TaskDetail() {
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                    {comment.content}
-                  </p>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{comment.content}</p>
                 </div>
               ))}
 
-              {comments.length === 0 && (
-                <div className="text-xs text-gray-400 text-center py-4">
-                  暂无评论
-                </div>
-              )}
+              {comments.length === 0 && <div className="text-xs text-gray-400 text-center py-4">暂无评论</div>}
             </div>
 
             {/* 添加评论 */}
@@ -380,9 +359,7 @@ export default function TaskDetail() {
                 className="select mt-1.5 text-xs"
                 title="手动变更状态（仅列出当前状态的合法流转）"
               >
-                <option value={task.status}>
-                  {TASK_STATUS_LABEL[task.status] ?? task.status}（当前）
-                </option>
+                <option value={task.status}>{TASK_STATUS_LABEL[task.status] ?? task.status}（当前）</option>
                 {nextTaskStatuses(task.status).map((s) => (
                   <option key={s} value={s}>
                     {TASK_STATUS_LABEL[s] ?? s}
@@ -440,25 +417,19 @@ export default function TaskDetail() {
 
             <div>
               <label className="text-xs font-medium text-gray-500">创建时间</label>
-              <div className="mt-1 text-sm text-gray-700">
-                {new Date(task.created_at).toLocaleString()}
-              </div>
+              <div className="mt-1 text-sm text-gray-700">{new Date(task.created_at).toLocaleString()}</div>
             </div>
 
             <div>
               <label className="text-xs font-medium text-gray-500">更新时间</label>
-              <div className="mt-1 text-sm text-gray-700">
-                {new Date(task.updated_at).toLocaleString()}
-              </div>
+              <div className="mt-1 text-sm text-gray-700">{new Date(task.updated_at).toLocaleString()}</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* 编辑任务弹窗 */}
-      {showEdit && task && (
-        <TaskForm task={task} onSubmit={handleUpdate} onCancel={() => setShowEdit(false)} />
-      )}
+      {showEdit && task && <TaskForm task={task} onSubmit={handleUpdate} onCancel={() => setShowEdit(false)} />}
     </div>
   );
 }

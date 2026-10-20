@@ -32,7 +32,9 @@ export default function RequirementForm({ requirement, onSubmit, onCancel }: Req
   });
 
   useEffect(() => {
-    listProjects().then(setProjects).catch(() => {});
+    listProjects()
+      .then(setProjects)
+      .catch(() => {});
   }, []);
 
   function validate(): boolean {
@@ -80,7 +82,11 @@ export default function RequirementForm({ requirement, onSubmit, onCancel }: Req
             <h2 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>
               {requirement ? "编辑需求" : "新建需求"}
             </h2>
-            <button onClick={onCancel} className="p-1 rounded-lg transition-colors" style={{ color: "var(--color-text-tertiary)" }}>
+            <button
+              onClick={onCancel}
+              className="p-1 rounded-lg transition-colors"
+              style={{ color: "var(--color-text-tertiary)" }}
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -104,7 +110,9 @@ export default function RequirementForm({ requirement, onSubmit, onCancel }: Req
               maxLength={200}
             />
             {errors.title && (
-              <p className="text-xs mt-1" style={{ color: "var(--color-danger)" }}>{errors.title}</p>
+              <p className="text-xs mt-1" style={{ color: "var(--color-danger)" }}>
+                {errors.title}
+              </p>
             )}
           </div>
 
@@ -119,7 +127,9 @@ export default function RequirementForm({ requirement, onSubmit, onCancel }: Req
               >
                 <option value="">请选择项目（可选）</option>
                 {projects.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -156,7 +166,12 @@ export default function RequirementForm({ requirement, onSubmit, onCancel }: Req
               <label className="label">类型</label>
               <select
                 value={formData.requirement_type}
-                onChange={(e) => setFormData({ ...formData, requirement_type: e.target.value as "feature" | "bug" | "optimization" | "tech_debt" })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    requirement_type: e.target.value as "feature" | "bug" | "optimization" | "tech_debt",
+                  })
+                }
                 className="select"
               >
                 <option value="feature">功能需求</option>
@@ -244,7 +259,9 @@ export default function RequirementForm({ requirement, onSubmit, onCancel }: Req
                 step="0.5"
               />
               {errors.estimated_effort && (
-                <p className="text-xs mt-1" style={{ color: "var(--color-danger)" }}>{errors.estimated_effort}</p>
+                <p className="text-xs mt-1" style={{ color: "var(--color-danger)" }}>
+                  {errors.estimated_effort}
+                </p>
               )}
             </div>
             <div>
@@ -297,11 +314,7 @@ export default function RequirementForm({ requirement, onSubmit, onCancel }: Req
             disabled={!formData.title.trim() || loading || Object.keys(errors).length > 0}
             className="btn-primary"
           >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             保存
           </button>
         </div>

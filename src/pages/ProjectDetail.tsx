@@ -1,16 +1,34 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, Save, Loader2, Plus, Trash2, X, Settings, Zap, Plug, FileText, Columns } from "lucide-react";
 import {
-  ArrowLeft, Save, Loader2, Plus, Trash2, X, Settings, Zap, Plug, FileText, Columns,
-} from "lucide-react";
-import {
-  getProject, updateProject,
-  listProjectSkills, addProjectSkill, removeProjectSkill,
-  listProjectMcps, addProjectMcp, removeProjectMcp,
-  listPrdSkills, listRequirements, listTasksByProject,
-  listStageSkillConfigs, upsertStageSkillConfig, removeStageSkillConfig, getPipelineStages, getStageSkillConfig,
+  getProject,
+  updateProject,
+  listProjectSkills,
+  addProjectSkill,
+  removeProjectSkill,
+  listProjectMcps,
+  addProjectMcp,
+  removeProjectMcp,
+  listPrdSkills,
+  listRequirements,
+  listTasksByProject,
+  listStageSkillConfigs,
+  upsertStageSkillConfig,
+  removeStageSkillConfig,
+  getPipelineStages,
+  getStageSkillConfig,
 } from "../lib/tauri";
-import type { Project, ProjectSkill, ProjectMcp, PrdSkill, Requirement, Task, StageSkillConfig, PipelineStageOption } from "../lib/types";
+import type {
+  Project,
+  ProjectSkill,
+  ProjectMcp,
+  PrdSkill,
+  Requirement,
+  Task,
+  StageSkillConfig,
+  PipelineStageOption,
+} from "../lib/types";
 import { PriorityBadge, StatusBadge, TaskTypeBadge } from "../components/Badges";
 
 type Tab = "overview" | "requirements" | "tasks" | "skills" | "mcps" | "pipeline";
@@ -78,7 +96,7 @@ export default function ProjectDetail() {
       setStageConfigs(stages);
       setPipelineStages(pipelineStagesList);
       // 过滤属于当前项目的需求
-      setRequirements(reqs.filter(r => r.project_id === projectId));
+      setRequirements(reqs.filter((r) => r.project_id === projectId));
       setTasks(projectTasks);
     } catch (error) {
       console.error("加载项目详情失败:", error);
@@ -250,12 +268,7 @@ export default function ProjectDetail() {
           <div className="space-y-4">
             <div>
               <label className="label">项目名称</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="input"
-              />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input" />
             </div>
             <div>
               <label className="label">项目描述</label>
@@ -279,11 +292,7 @@ export default function ProjectDetail() {
               </div>
               <div>
                 <label className="label">状态</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="select"
-                >
+                <select value={status} onChange={(e) => setStatus(e.target.value)} className="select">
                   <option value="active">进行中</option>
                   <option value="paused">已暂停</option>
                   <option value="archived">已归档</option>
@@ -435,26 +444,33 @@ export default function ProjectDetail() {
                 <div className="modal-header">
                   <div className="flex items-center justify-between">
                     <h3 className="text-base font-semibold text-gray-900">添加 Skill</h3>
-                    <button onClick={() => setShowAddSkill(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                    <button
+                      onClick={() => setShowAddSkill(false)}
+                      className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                    >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
                 <div className="modal-body">
                   <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {allSkills.filter((s) => !projectSkills.some((ps) => ps.skill_id === s.id)).map((skill) => (
-                      <button
-                        key={skill.id}
-                        onClick={() => handleAddSkill(skill.id)}
-                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all text-left"
-                      >
-                        <Zap className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{skill.name}</p>
-                          <p className="text-xs text-gray-400">{skill.skill_type} · {skill.description?.slice(0, 50)}</p>
-                        </div>
-                      </button>
-                    ))}
+                    {allSkills
+                      .filter((s) => !projectSkills.some((ps) => ps.skill_id === s.id))
+                      .map((skill) => (
+                        <button
+                          key={skill.id}
+                          onClick={() => handleAddSkill(skill.id)}
+                          className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all text-left"
+                        >
+                          <Zap className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{skill.name}</p>
+                            <p className="text-xs text-gray-400">
+                              {skill.skill_type} · {skill.description?.slice(0, 50)}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
                     {allSkills.filter((s) => !projectSkills.some((ps) => ps.skill_id === s.id)).length === 0 && (
                       <p className="text-sm text-gray-400 text-center py-4">所有 Skill 已添加</p>
                     )}
@@ -518,7 +534,10 @@ export default function ProjectDetail() {
                 <div className="modal-header">
                   <div className="flex items-center justify-between">
                     <h3 className="text-base font-semibold text-gray-900">添加 MCP</h3>
-                    <button onClick={() => setShowAddMcp(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                    <button
+                      onClick={() => setShowAddMcp(false)}
+                      className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                    >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -556,7 +575,9 @@ export default function ProjectDetail() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button onClick={() => setShowAddMcp(false)} className="btn-secondary">取消</button>
+                  <button onClick={() => setShowAddMcp(false)} className="btn-secondary">
+                    取消
+                  </button>
                   <button
                     onClick={handleAddMcp}
                     disabled={!newMcpName.trim() || !newMcpEndpoint.trim()}
@@ -586,11 +607,16 @@ export default function ProjectDetail() {
               return (
                 <div key={stage.value} className="flex items-center justify-between px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded flex items-center justify-center" style={{ background: "var(--color-primary-subtle)" }}>
+                    <div
+                      className="w-8 h-8 rounded flex items-center justify-center"
+                      style={{ background: "var(--color-primary-subtle)" }}
+                    >
                       <Settings className="w-4 h-4" style={{ color: "var(--color-primary)" }} />
                     </div>
                     <div>
-                      <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{stage.label}</p>
+                      <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
+                        {stage.label}
+                      </p>
                       <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
                         {configuredSkill ? `使用: ${configuredSkill.name}` : "未配置"}
                       </p>
@@ -615,8 +641,12 @@ export default function ProjectDetail() {
                         onClick={() => handleRemoveStageSkill(config.id)}
                         className="p-1.5 rounded-lg transition-colors"
                         style={{ color: "var(--color-text-tertiary)" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-danger)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-text-tertiary)"; }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = "var(--color-danger)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = "var(--color-text-tertiary)";
+                        }}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

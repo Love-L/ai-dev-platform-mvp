@@ -86,7 +86,11 @@ const taskTypeConfig: Record<string, { variant: BadgeProps["variant"]; label: st
 
 export function TaskTypeBadge({ type }: { type: string }) {
   const config = taskTypeConfig[type] || taskTypeConfig.development;
-  return <Badge variant={config.variant} size="sm">{config.label}</Badge>;
+  return (
+    <Badge variant={config.variant} size="sm">
+      {config.label}
+    </Badge>
+  );
 }
 
 // 类型标签 - 需求类型

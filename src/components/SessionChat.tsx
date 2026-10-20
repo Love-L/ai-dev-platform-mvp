@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
-import { Brain, Loader2 } from 'lucide-react';
-import { useSessionMessagesStore } from '../stores/sessionMessagesStore';
-import MessageBubble from './MessageBubble';
+import { useEffect, useRef, useState } from "react";
+import { Brain, Loader2 } from "lucide-react";
+import { useSessionMessagesStore } from "../stores/sessionMessagesStore";
+import MessageBubble from "./MessageBubble";
 
 interface SessionChatProps {
   sessionId: string;
@@ -77,18 +77,14 @@ export default function SessionChat({
 
   return (
     <div className="relative h-full">
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className="h-full overflow-y-auto px-4 py-3 space-y-2"
-      >
+      <div ref={scrollRef} onScroll={handleScroll} className="h-full overflow-y-auto px-4 py-3 space-y-2">
         {hasMore && (
           <div className="flex justify-center">
             <button
               type="button"
               onClick={loadOlder}
               className="text-xs px-3 py-1 rounded-full"
-              style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-secondary)' }}
+              style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}
             >
               加载更早的消息
             </button>
@@ -96,7 +92,10 @@ export default function SessionChat({
         )}
 
         {loading && (
-          <div className="flex items-center justify-center gap-2 py-6 text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+          <div
+            className="flex items-center justify-center gap-2 py-6 text-xs"
+            style={{ color: "var(--color-text-tertiary)" }}
+          >
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
             加载会话消息…
           </div>
@@ -104,10 +103,10 @@ export default function SessionChat({
 
         {!loading && messages.length === 0 && !streamingText && !showThinkingStream && (
           <div className="text-center py-10">
-            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+            <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
               暂无消息
             </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
+            <p className="text-xs mt-1" style={{ color: "var(--color-text-tertiary)" }}>
               在下方输入指令开始与 Agent 对话
             </p>
           </div>
@@ -125,15 +124,18 @@ export default function SessionChat({
 
         {/* 思考增量（折叠态仅显示计数，避免抖动） */}
         {showThinkingStream && (
-          <details className="rounded-lg px-3 py-2" style={{ border: '1px solid var(--color-border-subtle)' }}>
-            <summary className="text-xs flex items-center gap-2 cursor-pointer" style={{ color: 'var(--color-text-secondary)' }}>
-              <Brain className="w-3.5 h-3.5" style={{ color: 'var(--color-primary)' }} />
-              思考中…{thinkingTokens > 0 ? `（约 ${thinkingTokens} tokens）` : ''}
+          <details className="rounded-lg px-3 py-2" style={{ border: "1px solid var(--color-border-subtle)" }}>
+            <summary
+              className="text-xs flex items-center gap-2 cursor-pointer"
+              style={{ color: "var(--color-text-secondary)" }}
+            >
+              <Brain className="w-3.5 h-3.5" style={{ color: "var(--color-primary)" }} />
+              思考中…{thinkingTokens > 0 ? `（约 ${thinkingTokens} tokens）` : ""}
             </summary>
             {streamingThinking && (
               <div
                 className="whitespace-pre-wrap break-words text-[12px] leading-relaxed mt-2"
-                style={{ color: 'var(--color-text-tertiary)' }}
+                style={{ color: "var(--color-text-tertiary)" }}
               >
                 {streamingThinking}
               </div>
@@ -146,11 +148,11 @@ export default function SessionChat({
           <div className="flex justify-start">
             <div
               className="max-w-[85%] rounded-xl px-3.5 py-2.5"
-              style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text)' }}
+              style={{ background: "var(--color-bg-subtle)", color: "var(--color-text)" }}
             >
               <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                 {streamingText}
-                <span className="animate-pulse" style={{ color: 'var(--color-primary)' }}>
+                <span className="animate-pulse" style={{ color: "var(--color-primary)" }}>
                   ▍
                 </span>
               </div>
@@ -159,7 +161,7 @@ export default function SessionChat({
         )}
 
         {error && (
-          <p className="text-center text-[11px]" style={{ color: 'var(--color-danger)' }}>
+          <p className="text-center text-[11px]" style={{ color: "var(--color-danger)" }}>
             {error}
           </p>
         )}
@@ -174,7 +176,7 @@ export default function SessionChat({
             if (el) el.scrollTop = el.scrollHeight;
           }}
           className="absolute bottom-3 right-4 text-xs px-3 py-1.5 rounded-full shadow"
-          style={{ background: 'var(--color-primary)', color: '#fff' }}
+          style={{ background: "var(--color-primary)", color: "#fff" }}
         >
           ↓ 回到最新
         </button>

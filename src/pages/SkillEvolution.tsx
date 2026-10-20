@@ -101,12 +101,9 @@ function ScoreTrend({ history }: { history: SkillScore[] }) {
   const pad = 28;
   const max = 100;
   const min = Math.max(0, Math.min(...history.map((s) => s.total_score)) - 10);
-  const stepX =
-    history.length > 1 ? (w - pad * 2) / (history.length - 1) : 0;
+  const stepX = history.length > 1 ? (w - pad * 2) / (history.length - 1) : 0;
   const y = (v: number) => h - pad - ((v - min) / (max - min)) * (h - pad * 2);
-  const points = history
-    .map((s, i) => `${pad + i * stepX},${y(s.total_score)}`)
-    .join(" ");
+  const points = history.map((s, i) => `${pad + i * stepX},${y(s.total_score)}`).join(" ");
   return (
     <svg width="100%" viewBox={`0 0 ${w} ${h}`} className="max-w-[560px]">
       <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="#e5e7eb" />
@@ -115,22 +112,10 @@ function ScoreTrend({ history }: { history: SkillScore[] }) {
       {history.map((s, i) => (
         <g key={s.id}>
           <circle cx={pad + i * stepX} cy={y(s.total_score)} r="4" fill="#2563eb" />
-          <text
-            x={pad + i * stepX}
-            y={h - pad + 14}
-            textAnchor="middle"
-            fontSize="10"
-            fill="#6b7280"
-          >
+          <text x={pad + i * stepX} y={h - pad + 14} textAnchor="middle" fontSize="10" fill="#6b7280">
             v{s.version}
           </text>
-          <text
-            x={pad + i * stepX}
-            y={y(s.total_score) - 8}
-            textAnchor="middle"
-            fontSize="10"
-            fill="#374151"
-          >
+          <text x={pad + i * stepX} y={y(s.total_score) - 8} textAnchor="middle" fontSize="10" fill="#374151">
             {s.total_score}
           </text>
         </g>
@@ -147,9 +132,7 @@ function TemplateDiff({ oldText, newText }: { oldText: string; newText: string }
   return (
     <div className="grid grid-cols-2 gap-3 text-xs font-mono">
       <div className="border rounded-lg overflow-hidden">
-        <div className="px-3 py-1.5 bg-gray-100 text-gray-600 font-sans font-medium">
-          当前模板（v 旧）
-        </div>
+        <div className="px-3 py-1.5 bg-gray-100 text-gray-600 font-sans font-medium">当前模板（v 旧）</div>
         <pre className="p-3 max-h-[45vh] overflow-auto whitespace-pre-wrap leading-5">
           {Array.from({ length: rows }).map((_, i) => {
             const line = oldLines[i] ?? "";
@@ -163,9 +146,7 @@ function TemplateDiff({ oldText, newText }: { oldText: string; newText: string }
         </pre>
       </div>
       <div className="border rounded-lg overflow-hidden">
-        <div className="px-3 py-1.5 bg-blue-50 text-blue-700 font-sans font-medium">
-          优化草稿（新）
-        </div>
+        <div className="px-3 py-1.5 bg-blue-50 text-blue-700 font-sans font-medium">优化草稿（新）</div>
         <pre className="p-3 max-h-[45vh] overflow-auto whitespace-pre-wrap leading-5">
           {Array.from({ length: rows }).map((_, i) => {
             const line = newLines[i] ?? "";
@@ -216,16 +197,10 @@ export default function SkillEvolution() {
   }, [latest]);
 
   const ratchetBadge = useMemo(() => {
-    const hasRevert = suggestions.some(
-      (s) => s.rule_type === "ratchet_revert" && s.status === "pending"
-    );
-    const hasOsc = suggestions.some(
-      (s) => s.rule_type === "oscillation" && s.status === "pending"
-    );
-    if (hasRevert)
-      return { label: "below_peak", cls: "bg-amber-50 text-amber-700" };
-    if (hasOsc)
-      return { label: "oscillating", cls: "bg-orange-50 text-orange-700" };
+    const hasRevert = suggestions.some((s) => s.rule_type === "ratchet_revert" && s.status === "pending");
+    const hasOsc = suggestions.some((s) => s.rule_type === "oscillation" && s.status === "pending");
+    if (hasRevert) return { label: "below_peak", cls: "bg-amber-50 text-amber-700" };
+    if (hasOsc) return { label: "oscillating", cls: "bg-orange-50 text-orange-700" };
     if (latest) return { label: "keep", cls: "bg-green-50 text-green-700" };
     return null;
   }, [suggestions, latest]);
@@ -265,9 +240,7 @@ export default function SkillEvolution() {
       showToast(
         "success",
         `评分完成：结构 ${score.structure_score}/60` +
-          (score.effect_score != null
-            ? ` · 效果 ${score.effect_score}/40`
-            : " · 仅结构分")
+          (score.effect_score != null ? ` · 效果 ${score.effect_score}/40` : " · 仅结构分"),
       );
       await loadAll();
     } catch (e) {
@@ -343,15 +316,11 @@ export default function SkillEvolution() {
       // 应用后自动评分（棘轮判定）
       try {
         const score = await judgeSkill(id);
-        const delta =
-          before != null ? `，评分 ${before} → ${score.total_score}` : "";
-        const regressed =
-          before != null && score.total_score < before;
+        const delta = before != null ? `，评分 ${before} → ${score.total_score}` : "";
+        const regressed = before != null && score.total_score < before;
         showToast(
           regressed ? "error" : "success",
-          regressed
-            ? `已应用但分数下降${delta}，建议回退`
-            : `已应用为新版本（v${score.version}）${delta}`
+          regressed ? `已应用但分数下降${delta}，建议回退` : `已应用为新版本（v${score.version}）${delta}`,
         );
       } catch {
         showToast("success", "已应用为新版本");
@@ -366,8 +335,7 @@ export default function SkillEvolution() {
 
   async function handleRevert(version: number) {
     if (!id) return;
-    if (!window.confirm(`确认回退到 v${version}？将以该版本模板创建新版本。`))
-      return;
+    if (!window.confirm(`确认回退到 v${version}？将以该版本模板创建新版本。`)) return;
     try {
       const updated = await revertSkillVersion(id, version);
       showToast("success", `已回退，当前版本 v${updated.version}`);
@@ -420,9 +388,7 @@ export default function SkillEvolution() {
                 {skill.skill_type}
               </span>
               {builtin && (
-                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded">
-                  内置
-                </span>
+                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded">内置</span>
               )}
               {(skill.version ?? 1) > 1 && (
                 <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-medium rounded">
@@ -436,8 +402,8 @@ export default function SkillEvolution() {
                     ratchetBadge.label === "below_peak"
                       ? "分数低于历史峰值，可回退"
                       : ratchetBadge.label === "oscillating"
-                      ? "维度分数振荡，建议人工介入"
-                      : "棘轮正常（分数只升不降）"
+                        ? "维度分数振荡，建议人工介入"
+                        : "棘轮正常（分数只升不降）"
                   }
                 >
                   {ratchetBadge.label}
@@ -455,11 +421,7 @@ export default function SkillEvolution() {
             disabled={analyzing}
             className="px-3 py-2 text-sm border rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 flex items-center gap-1.5"
           >
-            {analyzing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Lightbulb className="w-4 h-4" />
-            )}
+            {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lightbulb className="w-4 h-4" />}
             立即诊断
           </button>
           <button
@@ -467,11 +429,7 @@ export default function SkillEvolution() {
             disabled={judging}
             className="px-3 py-2 text-sm border rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 flex items-center gap-1.5"
           >
-            {judging ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4" />
-            )}
+            {judging ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             立即体检
           </button>
           <button
@@ -480,11 +438,7 @@ export default function SkillEvolution() {
             title={builtin ? "内置 Skill 不可优化，请先创建自定义版本" : "AI 优化模板"}
             className="btn-primary disabled:opacity-50 flex items-center gap-1.5"
           >
-            {optimizing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Sparkles className="w-4 h-4" />
-            )}
+            {optimizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             AI 优化
           </button>
         </div>
@@ -498,28 +452,18 @@ export default function SkillEvolution() {
             <>
               <div className="flex items-center gap-4 text-sm text-gray-700">
                 <span>
-                  结构分{" "}
-                  <b className="text-gray-900">
-                    {latest.structure_score}
-                  </b>
+                  结构分 <b className="text-gray-900">{latest.structure_score}</b>
                   /60
                 </span>
                 <span>
-                  效果分{" "}
-                  <b className="text-gray-900">
-                    {latest.effect_score ?? "—"}
-                  </b>
+                  效果分 <b className="text-gray-900">{latest.effect_score ?? "—"}</b>
                   /40
                 </span>
                 <span className="text-gray-400">
                   v{latest.version} · {latest.judged_at.slice(0, 16).replace("T", " ")}
                 </span>
               </div>
-              {latest.judge_reason && (
-                <p className="text-xs text-gray-500 mt-1.5">
-                  Judge：{latest.judge_reason}
-                </p>
-              )}
+              {latest.judge_reason && <p className="text-xs text-gray-500 mt-1.5">Judge：{latest.judge_reason}</p>}
               <div className="grid grid-cols-3 gap-x-4 gap-y-1 mt-3">
                 {latestDims.map((d) => (
                   <div key={d.key} className="text-xs">
@@ -585,16 +529,12 @@ export default function SkillEvolution() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-gray-700">优化建议</h3>
-            <span className="text-xs text-gray-400">
-              规则诊断 + 静态体检 + 棘轮/振荡
-            </span>
+            <span className="text-xs text-gray-400">规则诊断 + 静态体检 + 棘轮/振荡</span>
           </div>
           {suggestions.length === 0 ? (
             <div className="card p-10 text-center">
               <CheckCircle2 className="w-8 h-8 text-green-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">
-                暂无建议。点击「立即诊断」运行 L1 规则引擎
-              </p>
+              <p className="text-sm text-gray-500">暂无建议。点击「立即诊断」运行 L1 规则引擎</p>
             </div>
           ) : (
             suggestions.map((s) => {
@@ -607,34 +547,29 @@ export default function SkillEvolution() {
                 >
                   <div
                     className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                      SEVERITY_CLASS[s.severity as keyof typeof SEVERITY_CLASS] ??
-                      "text-gray-500 bg-gray-100"
+                      SEVERITY_CLASS[s.severity as keyof typeof SEVERITY_CLASS] ?? "text-gray-500 bg-gray-100"
                     }`}
                   >
                     <Icon className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-mono text-gray-400">
-                        {s.rule_type}
-                      </span>
+                      <span className="text-[11px] font-mono text-gray-400">{s.rule_type}</span>
                       <span
                         className={`px-1.5 py-0.5 text-[10px] rounded ${
                           s.status === "pending"
                             ? "bg-amber-50 text-amber-700"
                             : s.status === "applied"
-                            ? "bg-blue-50 text-blue-700"
-                            : s.status === "verified"
-                            ? "bg-green-50 text-green-700"
-                            : "bg-gray-100 text-gray-500"
+                              ? "bg-blue-50 text-blue-700"
+                              : s.status === "verified"
+                                ? "bg-green-50 text-green-700"
+                                : "bg-gray-100 text-gray-500"
                         }`}
                       >
                         {s.status}
                       </span>
                       {s.applied_version != null && (
-                        <span className="text-[10px] text-gray-400">
-                          v{s.applied_version}
-                        </span>
+                        <span className="text-[10px] text-gray-400">v{s.applied_version}</span>
                       )}
                     </div>
                     <p className="text-sm text-gray-700 mt-0.5">{s.message}</p>
@@ -645,11 +580,7 @@ export default function SkillEvolution() {
                       disabled={optimizing}
                       className="px-2.5 py-1.5 text-xs border rounded-lg text-blue-600 hover:bg-blue-50 disabled:opacity-50 flex items-center gap-1 shrink-0"
                     >
-                      {optimizing ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-3 h-3" />
-                      )}
+                      {optimizing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                       AI 优化草稿
                     </button>
                   )}
@@ -664,9 +595,7 @@ export default function SkillEvolution() {
       {tab === "scores" && (
         <div className="card p-5 space-y-4">
           {history.length === 0 ? (
-            <div className="p-8 text-center text-sm text-gray-500">
-              暂无评分历史，点击「立即体检」开始
-            </div>
+            <div className="p-8 text-center text-sm text-gray-500">暂无评分历史，点击「立即体检」开始</div>
           ) : (
             <>
               <ScoreTrend history={history} />
@@ -688,16 +617,10 @@ export default function SkillEvolution() {
                       <td>{s.structure_score}/60</td>
                       <td>{s.effect_score ?? "—"}/40</td>
                       <td>
-                        <b style={{ color: scoreColor(s.total_score) }}>
-                          {s.total_score}
-                        </b>
+                        <b style={{ color: scoreColor(s.total_score) }}>{s.total_score}</b>
                       </td>
-                      <td className="text-xs text-gray-500 max-w-[240px] truncate">
-                        {s.judge_reason || "—"}
-                      </td>
-                      <td className="text-right text-xs text-gray-400">
-                        {s.judged_at.slice(0, 16).replace("T", " ")}
-                      </td>
+                      <td className="text-xs text-gray-500 max-w-[240px] truncate">{s.judge_reason || "—"}</td>
+                      <td className="text-right text-xs text-gray-400">{s.judged_at.slice(0, 16).replace("T", " ")}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -711,9 +634,7 @@ export default function SkillEvolution() {
       {tab === "versions" && (
         <div className="card divide-y">
           {versions.length === 0 ? (
-            <div className="p-8 text-center text-sm text-gray-500">
-              暂无版本快照（历史版本在创建/编辑时自动记录）
-            </div>
+            <div className="p-8 text-center text-sm text-gray-500">暂无版本快照（历史版本在创建/编辑时自动记录）</div>
           ) : (
             [...versions].reverse().map((v) => (
               <div key={v.id} className="p-4">
@@ -722,22 +643,14 @@ export default function SkillEvolution() {
                     <GitBranch className="w-4 h-4 text-gray-400" />
                     <span className="text-sm font-medium">v{v.version}</span>
                     {v.version === (skill.version ?? 1) && (
-                      <span className="px-1.5 py-0.5 text-[10px] bg-green-50 text-green-700 rounded">
-                        当前
-                      </span>
+                      <span className="px-1.5 py-0.5 text-[10px] bg-green-50 text-green-700 rounded">当前</span>
                     )}
-                    {v.note && (
-                      <span className="text-xs text-gray-400">{v.note}</span>
-                    )}
-                    <span className="text-xs text-gray-300">
-                      {v.created_at.slice(0, 16).replace("T", " ")}
-                    </span>
+                    {v.note && <span className="text-xs text-gray-400">{v.note}</span>}
+                    <span className="text-xs text-gray-300">{v.created_at.slice(0, 16).replace("T", " ")}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() =>
-                        setExpandedVersion(expandedVersion === v.version ? null : v.version)
-                      }
+                      onClick={() => setExpandedVersion(expandedVersion === v.version ? null : v.version)}
                       className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
                       title="查看模板"
                     >
@@ -773,17 +686,13 @@ export default function SkillEvolution() {
       {tab === "logs" && (
         <div className="card divide-y">
           {logs.length === 0 ? (
-            <div className="p-8 text-center text-sm text-gray-500">
-              暂无执行记录
-            </div>
+            <div className="p-8 text-center text-sm text-gray-500">暂无执行记录</div>
           ) : (
             logs.map((log) => (
               <div key={log.id} className="p-4">
                 <div
                   className="flex items-center justify-between cursor-pointer"
-                  onClick={() =>
-                    setExpandedLog(expandedLog === log.id ? null : log.id)
-                  }
+                  onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
                 >
                   <div className="flex items-center gap-3 text-sm">
                     {log.status === "success" ? (
@@ -806,11 +715,7 @@ export default function SkillEvolution() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-400">
                     {log.executed_at.slice(0, 16).replace("T", " ")}
-                    {expandedLog === log.id ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
+                    {expandedLog === log.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </div>
                 </div>
                 {expandedLog === log.id && (
@@ -850,10 +755,7 @@ export default function SkillEvolution() {
                 <Sparkles className="w-5 h-5 text-blue-600" />
                 AI 优化预览
               </h2>
-              <button
-                onClick={() => setDraft(null)}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
+              <button onClick={() => setDraft(null)} className="p-1 hover:bg-gray-100 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -866,10 +768,7 @@ export default function SkillEvolution() {
                   {draft.target_dimensions?.length > 0 && (
                     <div className="mt-1 flex gap-1.5 flex-wrap">
                       {draft.target_dimensions.map((d) => (
-                        <span
-                          key={d}
-                          className="px-1.5 py-0.5 text-[10px] bg-blue-100 rounded"
-                        >
+                        <span key={d} className="px-1.5 py-0.5 text-[10px] bg-blue-100 rounded">
                           {d}
                         </span>
                       ))}
@@ -880,10 +779,7 @@ export default function SkillEvolution() {
               <TemplateDiff oldText={skill.template} newText={draft.new_template} />
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50">
-              <button
-                onClick={() => setDraft(null)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-              >
+              <button onClick={() => setDraft(null)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
                 取消
               </button>
               <button
@@ -891,11 +787,7 @@ export default function SkillEvolution() {
                 disabled={applying || builtin}
                 className="btn-primary disabled:opacity-50 flex items-center gap-1.5"
               >
-                {applying ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="w-4 h-4" />
-                )}
+                {applying ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                 应用为新版本（v{(skill.version ?? 1) + 1}）
               </button>
             </div>

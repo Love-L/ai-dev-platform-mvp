@@ -1,13 +1,6 @@
-import { create } from 'zustand';
-import {
-  getAgents,
-  getAgentSessions,
-  discoverAgents,
-  verifyAgents,
-  startAgent,
-  stopAgent,
-} from '../lib/tauri';
-import type { Agent, AgentSession } from '../lib/types';
+import { create } from "zustand";
+import { getAgents, getAgentSessions, discoverAgents, verifyAgents, startAgent, stopAgent } from "../lib/tauri";
+import type { Agent, AgentSession } from "../lib/types";
 
 interface AgentsState {
   agents: Agent[];

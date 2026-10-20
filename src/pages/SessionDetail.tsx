@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  ArrowLeft, Terminal, Zap, Plug, Link2, Coins, MessageSquare, RefreshCw,
-} from "lucide-react";
+import { ArrowLeft, Terminal, Zap, Plug, Link2, Coins, MessageSquare, RefreshCw } from "lucide-react";
 import {
   getAgentSessions,
   getSkillExecutionLogs,
@@ -146,9 +144,7 @@ export default function SessionDetail() {
   }
 
   // 解析 skills/mcps JSON
-  const sessionSkills: { skill_id: string; skill_name?: string }[] = session?.skills
-    ? JSON.parse(session.skills)
-    : [];
+  const sessionSkills: { skill_id: string; skill_name?: string }[] = session?.skills ? JSON.parse(session.skills) : [];
   const sessionMcps: { mcp_name: string; endpoint?: string; status?: string }[] = session?.mcps
     ? JSON.parse(session.mcps)
     : [];
@@ -185,18 +181,18 @@ export default function SessionDetail() {
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1">
-          <h1 className="text-xl font-semibold text-gray-900">
-            {session.title || `会话 ${session.id.slice(0, 8)}`}
-          </h1>
+          <h1 className="text-xl font-semibold text-gray-900">{session.title || `会话 ${session.id.slice(0, 8)}`}</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             状态:
-            <span className={`ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
-              session.status === "running"
-                ? "bg-blue-50 text-blue-700"
-                : session.status === "completed"
-                ? "bg-emerald-50 text-emerald-700"
-                : "bg-red-50 text-red-700"
-            }`}>
+            <span
+              className={`ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                session.status === "running"
+                  ? "bg-blue-50 text-blue-700"
+                  : session.status === "completed"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-red-50 text-red-700"
+              }`}
+            >
               {session.status === "running" ? "运行中" : session.status === "completed" ? "已完成" : "失败"}
             </span>
             {session.source && (
@@ -335,7 +331,9 @@ export default function SessionDetail() {
                     <div className="flex items-center gap-2">
                       <Zap className="w-3.5 h-3.5 text-purple-600" />
                       <span className="text-sm font-medium text-gray-900">{log.skill_name}</span>
-                      <span className="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">{log.execution_phase}</span>
+                      <span className="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
+                        {log.execution_phase}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <span>{log.token_usage.toLocaleString()} tokens</span>
@@ -365,15 +363,21 @@ export default function SessionDetail() {
                     <div className="flex items-center gap-2">
                       <Plug className="w-3.5 h-3.5 text-green-600" />
                       <span className="text-sm font-medium text-gray-900">{log.mcp_name}</span>
-                      {log.action && <span className="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">{log.action}</span>}
+                      {log.action && (
+                        <span className="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
+                          {log.action}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       {log.duration_ms && <span>{log.duration_ms}ms</span>}
-                      <span className={
-                        log.status === "connected" || log.status === "call_success"
-                          ? "text-emerald-600"
-                          : "text-red-600"
-                      }>
+                      <span
+                        className={
+                          log.status === "connected" || log.status === "call_success"
+                            ? "text-emerald-600"
+                            : "text-red-600"
+                        }
+                      >
                         {log.status === "connected" || log.status === "call_success" ? "✓" : "✗"}
                       </span>
                     </div>
@@ -443,12 +447,16 @@ export default function SessionDetail() {
                 {sessionMcps.map((m, i) => (
                   <div key={i} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${
-                        m.status === "connected" ? "bg-emerald-500" : "bg-gray-300"
-                      }`} />
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          m.status === "connected" ? "bg-emerald-500" : "bg-gray-300"
+                        }`}
+                      />
                       <span className="text-gray-700">{m.mcp_name}</span>
                     </div>
-                    {m.endpoint && <span className="text-[10px] font-mono text-gray-400 truncate max-w-[100px]">{m.endpoint}</span>}
+                    {m.endpoint && (
+                      <span className="text-[10px] font-mono text-gray-400 truncate max-w-[100px]">{m.endpoint}</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -472,7 +480,9 @@ export default function SessionDetail() {
               {session.duration_seconds && (
                 <div className="flex justify-between">
                   <dt className="text-gray-500">耗时</dt>
-                  <dd className="text-gray-700">{Math.floor(session.duration_seconds / 60)}分{session.duration_seconds % 60}秒</dd>
+                  <dd className="text-gray-700">
+                    {Math.floor(session.duration_seconds / 60)}分{session.duration_seconds % 60}秒
+                  </dd>
                 </div>
               )}
             </dl>

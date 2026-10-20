@@ -85,7 +85,10 @@ export default function Agents() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="flex items-center gap-3 text-sm" style={{ color: "var(--color-text-tertiary)" }}>
-          <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "var(--color-border)", borderTopColor: "var(--color-primary)" }} />
+          <div
+            className="w-4 h-4 border-2 rounded-full animate-spin"
+            style={{ borderColor: "var(--color-border)", borderTopColor: "var(--color-primary)" }}
+          />
           加载中...
         </div>
       </div>
@@ -97,8 +100,12 @@ export default function Agents() {
       {/* 页面标题 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>Agent管理</h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>管理本地CLI Agent</p>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>
+            Agent管理
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+            管理本地CLI Agent
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -107,16 +114,10 @@ export default function Agents() {
             className="btn-secondary"
             title="校验 Agent 二进制是否仍然存在，并把已无真实进程的会话纠正为失败"
           >
-            <ShieldCheck
-              className={`w-4 h-4 ${busyAction === "verify" ? "animate-pulse" : ""}`}
-            />
+            <ShieldCheck className={`w-4 h-4 ${busyAction === "verify" ? "animate-pulse" : ""}`} />
             状态复核
           </button>
-          <button
-            onClick={handleRefresh}
-            disabled={busyAction !== null}
-            className="btn-secondary"
-          >
+          <button onClick={handleRefresh} disabled={busyAction !== null} className="btn-secondary">
             <RefreshCw className={`w-4 h-4 ${busyAction === "discover" ? "animate-spin" : ""}`} />
             刷新检测
           </button>
@@ -162,8 +163,14 @@ export default function Agents() {
                             onClick={() => navigate("/sessions")}
                             className="p-1.5 rounded-lg"
                             style={{ color: "var(--color-text-tertiary)", transition: "all var(--transition-fast)" }}
-                            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-primary)"; e.currentTarget.style.background = "var(--color-primary-subtle)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.color = ""; e.currentTarget.style.background = ""; }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = "var(--color-primary)";
+                              e.currentTarget.style.background = "var(--color-primary-subtle)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = "";
+                              e.currentTarget.style.background = "";
+                            }}
                             title="查看终端"
                           >
                             <Terminal className="w-4 h-4" />
@@ -172,8 +179,14 @@ export default function Agents() {
                             onClick={() => handleStopAgent(session.id)}
                             className="p-1.5 rounded-lg"
                             style={{ color: "var(--color-text-tertiary)", transition: "all var(--transition-fast)" }}
-                            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-danger)"; e.currentTarget.style.background = "var(--color-danger-light)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.color = ""; e.currentTarget.style.background = ""; }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = "var(--color-danger)";
+                              e.currentTarget.style.background = "var(--color-danger-light)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = "";
+                              e.currentTarget.style.background = "";
+                            }}
                             title="停止"
                           >
                             <Square className="w-4 h-4" />
@@ -191,7 +204,9 @@ export default function Agents() {
 
       {/* 可用的Agent */}
       <div>
-        <h2 className="text-base font-semibold mb-3" style={{ color: "var(--color-text)" }}>可用的Agent</h2>
+        <h2 className="text-base font-semibold mb-3" style={{ color: "var(--color-text)" }}>
+          可用的Agent
+        </h2>
         {agents.length === 0 ? (
           <div className="panel">
             <div className="empty-state py-8">
@@ -205,84 +220,112 @@ export default function Agents() {
             {agents.map((agent) => {
               const caps = parseAgentCapabilities(agent);
               return (
-              <div key={agent.id} className="card p-4" style={{ transition: "border-color var(--transition-fast), box-shadow var(--transition-fast)" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; e.currentTarget.style.boxShadow = "var(--shadow-sm)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = ""; e.currentTarget.style.boxShadow = ""; }}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg" style={{ background: agent.status === "available" ? "var(--color-primary-subtle)" : "var(--color-danger-light)" }}>
-                      <Bot className="w-5 h-5" style={{ color: agent.status === "available" ? "var(--color-primary)" : "var(--color-danger)" }} />
+                <div
+                  key={agent.id}
+                  className="card p-4"
+                  style={{ transition: "border-color var(--transition-fast), box-shadow var(--transition-fast)" }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-primary)";
+                    e.currentTarget.style.boxShadow = "var(--shadow-sm)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "";
+                    e.currentTarget.style.boxShadow = "";
+                  }}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="p-2 rounded-lg"
+                        style={{
+                          background:
+                            agent.status === "available" ? "var(--color-primary-subtle)" : "var(--color-danger-light)",
+                        }}
+                      >
+                        <Bot
+                          className="w-5 h-5"
+                          style={{
+                            color: agent.status === "available" ? "var(--color-primary)" : "var(--color-danger)",
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>
+                          {agent.display_name}
+                        </h3>
+                        <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+                          {agent.name}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>{agent.display_name}</h3>
-                      <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>{agent.name}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {/* 仅"二进制不可用"才算失效；running 是合法状态（由会话推导），
+                    <div className="flex items-center gap-2">
+                      {/* 仅"二进制不可用"才算失效；running 是合法状态（由会话推导），
                         不能用 !== "available" 判断，否则运行中的 Agent 会同时显示"已失效"+"运行中" */}
-                    {agent.status === "unavailable" && (
-                      <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--color-danger-light)", color: "var(--color-danger)" }}>
-                        <AlertTriangle className="w-3 h-3" />
-                        已失效
+                      {agent.status === "unavailable" && (
+                        <span
+                          className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full"
+                          style={{ background: "var(--color-danger-light)", color: "var(--color-danger)" }}
+                        >
+                          <AlertTriangle className="w-3 h-3" />
+                          已失效
+                        </span>
+                      )}
+                      <StatusBadge status={agent.status} />
+                      {/* 能力等级徽章（多 Agent 适配 MA-02）：结构化(L3) / 一次性(L2) / 仅终端(L1) */}
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded-full"
+                        style={{
+                          background: caps.structured_events
+                            ? "var(--color-success-light, #e6f7ed)"
+                            : caps.one_shot
+                              ? "var(--color-primary-subtle)"
+                              : "var(--color-bg-subtle)",
+                          color: caps.structured_events ? "var(--color-success)" : "var(--color-text-secondary)",
+                        }}
+                      >
+                        {agentCapabilityLabel(caps)}
                       </span>
-                    )}
-                    <StatusBadge status={agent.status} />
-                    {/* 能力等级徽章（多 Agent 适配 MA-02）：结构化(L3) / 一次性(L2) / 仅终端(L1) */}
-                    <span
-                      className="text-[10px] px-1.5 py-0.5 rounded-full"
-                      style={{
-                        background: caps.structured_events
-                          ? "var(--color-success-light, #e6f7ed)"
-                          : caps.one_shot
-                            ? "var(--color-primary-subtle)"
-                            : "var(--color-bg-subtle)",
-                        color: caps.structured_events
-                          ? "var(--color-success)"
-                          : "var(--color-text-secondary)",
-                      }}
-                    >
-                      {agentCapabilityLabel(caps)}
-                    </span>
+                    </div>
                   </div>
-                </div>
 
-                <div className="space-y-1.5 text-xs mb-4" style={{ color: "var(--color-text-tertiary)" }}>
-                  <div className="flex justify-between">
-                    <span>版本</span>
-                    <span style={{ color: "var(--color-text-secondary)" }}>{agent.version || "未知"}</span>
+                  <div className="space-y-1.5 text-xs mb-4" style={{ color: "var(--color-text-tertiary)" }}>
+                    <div className="flex justify-between">
+                      <span>版本</span>
+                      <span style={{ color: "var(--color-text-secondary)" }}>{agent.version || "未知"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>路径</span>
+                      <span
+                        className="font-mono text-[10px] truncate max-w-[120px]"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        {agent.binary_path}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>路径</span>
-                    <span className="font-mono text-[10px] truncate max-w-[120px]" style={{ color: "var(--color-text-secondary)" }}>
-                      {agent.binary_path}
-                    </span>
-                  </div>
-                </div>
 
-                <button
-                  onClick={() => handleStartStructured(agent)}
-                  disabled={agent.status !== "available" || !caps.structured_events}
-                  className="w-full btn-secondary text-sm mb-1"
-                  title={
-                    caps.structured_events
-                      ? "以消息模式启动：可发送指令并查看结构化回复与思考内容"
-                      : "该 Agent 暂不支持结构化会话（L3 未实测或未适配），请使用「启动」（终端模式）"
-                  }
-                >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  消息模式启动
-                </button>
-                <button
-                  onClick={() => handleStartAgent(agent)}
-                  disabled={agent.status !== "available"}
-                  className="w-full btn-primary text-sm"
-                >
-                  <Play className="w-3.5 h-3.5" />
-                  启动
-                </button>
-              </div>
+                  <button
+                    onClick={() => handleStartStructured(agent)}
+                    disabled={agent.status !== "available" || !caps.structured_events}
+                    className="w-full btn-secondary text-sm mb-1"
+                    title={
+                      caps.structured_events
+                        ? "以消息模式启动：可发送指令并查看结构化回复与思考内容"
+                        : "该 Agent 暂不支持结构化会话（L3 未实测或未适配），请使用「启动」（终端模式）"
+                    }
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    消息模式启动
+                  </button>
+                  <button
+                    onClick={() => handleStartAgent(agent)}
+                    disabled={agent.status !== "available"}
+                    className="w-full btn-primary text-sm"
+                  >
+                    <Play className="w-3.5 h-3.5" />
+                    启动
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -292,7 +335,9 @@ export default function Agents() {
       {/* 最近的会话记录 */}
       {sessions.filter((s) => s.status !== "running").length > 0 && (
         <div>
-          <h2 className="text-base font-semibold mb-3" style={{ color: "var(--color-text)" }}>最近的会话记录</h2>
+          <h2 className="text-base font-semibold mb-3" style={{ color: "var(--color-text)" }}>
+            最近的会话记录
+          </h2>
           <div className="table-container">
             <table className="table">
               <thead>
@@ -324,7 +369,11 @@ export default function Agents() {
                         </td>
                         <td>
                           {session.exit_code !== null ? (
-                            <span style={{ color: session.exit_code === 0 ? "var(--color-success)" : "var(--color-danger)" }}>
+                            <span
+                              style={{
+                                color: session.exit_code === 0 ? "var(--color-success)" : "var(--color-danger)",
+                              }}
+                            >
                               {session.exit_code}
                             </span>
                           ) : (

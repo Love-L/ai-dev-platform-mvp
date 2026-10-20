@@ -24,8 +24,8 @@ export default function Sessions() {
   const navigate = useNavigate();
   const { sessions, loading, fetchSessions, stopSession } = useSessionsStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedSession, setSelectedSession] = useState<AgentSession | null>(null);
   const [showTerminal, setShowTerminal] = useState(false);
   // 关联开发任务弹窗
@@ -52,7 +52,7 @@ export default function Sessions() {
     try {
       await stopSession(sessionId);
     } catch (error) {
-      console.error('终止会话失败:', error);
+      console.error("终止会话失败:", error);
     }
   }
 
@@ -96,7 +96,7 @@ export default function Sessions() {
 
   // 过滤会话
   const filteredSessions = sessions.filter((session) => {
-    if (filterStatus !== 'all' && session.status !== filterStatus) {
+    if (filterStatus !== "all" && session.status !== filterStatus) {
       return false;
     }
     if (searchQuery) {
@@ -113,21 +113,21 @@ export default function Sessions() {
   // 统计数据
   const stats = {
     total: sessions.length,
-    running: sessions.filter((s) => s.status === 'running').length,
-    completed: sessions.filter((s) => s.status === 'completed').length,
-    failed: sessions.filter((s) => s.status === 'failed').length,
+    running: sessions.filter((s) => s.status === "running").length,
+    completed: sessions.filter((s) => s.status === "completed").length,
+    failed: sessions.filter((s) => s.status === "failed").length,
   };
 
   // 获取状态图标
   function getStatusIcon(status: string) {
     switch (status) {
-      case 'running':
+      case "running":
         return <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--color-success)" }} />;
-      case 'completed':
+      case "completed":
         return <CheckCircle className="w-4 h-4" style={{ color: "var(--color-success)" }} />;
-      case 'failed':
+      case "failed":
         return <XCircle className="w-4 h-4" style={{ color: "var(--color-danger)" }} />;
-      case 'terminated':
+      case "terminated":
         return <Square className="w-4 h-4" style={{ color: "var(--color-text-tertiary)" }} />;
       default:
         return <Clock className="w-4 h-4" style={{ color: "var(--color-warning)" }} />;
@@ -137,18 +137,18 @@ export default function Sessions() {
   // 获取状态文本
   function getStatusText(status: string) {
     switch (status) {
-      case 'created':
-        return '已创建';
-      case 'launching':
-        return '启动中';
-      case 'running':
-        return '运行中';
-      case 'completed':
-        return '已完成';
-      case 'failed':
-        return '失败';
-      case 'terminated':
-        return '已终止';
+      case "created":
+        return "已创建";
+      case "launching":
+        return "启动中";
+      case "running":
+        return "运行中";
+      case "completed":
+        return "已完成";
+      case "failed":
+        return "失败";
+      case "terminated":
+        return "已终止";
       default:
         return status;
     }
@@ -156,7 +156,7 @@ export default function Sessions() {
 
   // 格式化时长
   function formatDuration(seconds?: number) {
-    if (!seconds) return '-';
+    if (!seconds) return "-";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}m ${secs}s`;
@@ -164,7 +164,7 @@ export default function Sessions() {
 
   // 格式化 Token
   function formatTokens(tokens?: number) {
-    if (!tokens) return '0';
+    if (!tokens) return "0";
     if (tokens >= 1000000) {
       return `${(tokens / 1000000).toFixed(1)}M`;
     }
@@ -178,7 +178,10 @@ export default function Sessions() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center gap-3 text-sm" style={{ color: "var(--color-text-tertiary)" }}>
-          <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "var(--color-border)", borderTopColor: "var(--color-primary)" }} />
+          <div
+            className="w-4 h-4 border-2 rounded-full animate-spin"
+            style={{ borderColor: "var(--color-border)", borderTopColor: "var(--color-primary)" }}
+          />
           加载中...
         </div>
       </div>
@@ -195,15 +198,14 @@ export default function Sessions() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>会话管理</h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>查看和管理 Agent 执行会话</p>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>
+            会话管理
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+            查看和管理 Agent 执行会话
+          </p>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="btn-secondary"
-          aria-label="刷新会话列表"
-        >
+        <button onClick={handleRefresh} disabled={refreshing} className="btn-secondary" aria-label="刷新会话列表">
           <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
           刷新
         </button>
@@ -224,8 +226,12 @@ export default function Sessions() {
             transition={{ duration: 0.2, delay: i * 0.04 }}
             className="card p-4"
           >
-            <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>{card.label}</p>
-            <p className="text-lg font-semibold mt-1" style={{ color: card.color }}>{card.value}</p>
+            <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+              {card.label}
+            </p>
+            <p className="text-lg font-semibold mt-1" style={{ color: card.color }}>
+              {card.value}
+            </p>
           </motion.div>
         ))}
       </div>
@@ -234,11 +240,7 @@ export default function Sessions() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4" style={{ color: "var(--color-text-tertiary)" }} />
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="select w-auto"
-          >
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="select w-auto">
             <option value="all">全部状态</option>
             <option value="running">运行中</option>
             <option value="completed">已完成</option>
@@ -248,7 +250,10 @@ export default function Sessions() {
         </div>
 
         <div className="flex-1 w-full sm:w-auto relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--color-text-tertiary)" }} />
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+            style={{ color: "var(--color-text-tertiary)" }}
+          />
           <input
             type="text"
             placeholder="搜索会话..."
@@ -272,7 +277,9 @@ export default function Sessions() {
               <th scope="col">Token</th>
               <th scope="col">费用</th>
               <th scope="col">开始时间</th>
-              <th scope="col" className="text-right">操作</th>
+              <th scope="col" className="text-right">
+                操作
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -280,8 +287,12 @@ export default function Sessions() {
               <tr>
                 <td colSpan={9} className="text-center py-12">
                   <Terminal className="w-10 h-10 mx-auto mb-3" style={{ color: "var(--color-text-tertiary)" }} />
-                  <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>暂无会话记录</p>
-                  <p className="text-xs mt-1" style={{ color: "var(--color-text-tertiary)" }}>Agent 启动后会话将显示在此处</p>
+                  <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
+                    暂无会话记录
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: "var(--color-text-tertiary)" }}>
+                    Agent 启动后会话将显示在此处
+                  </p>
                 </td>
               </tr>
             ) : (
@@ -341,9 +352,7 @@ export default function Sessions() {
                     ${session.total_cost?.toFixed(4) || "0.00"}
                   </td>
                   <td className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>
-                    {session.started_at
-                      ? new Date(session.started_at).toLocaleString("zh-CN")
-                      : "-"}
+                    {session.started_at ? new Date(session.started_at).toLocaleString("zh-CN") : "-"}
                   </td>
                   <td className="text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -352,8 +361,14 @@ export default function Sessions() {
                         onClick={() => navigate(`/sessions/${session.id}`)}
                         className="p-1.5 rounded-lg"
                         style={{ color: "var(--color-text-tertiary)", transition: "all var(--transition-fast)" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-primary)"; e.currentTarget.style.background = "var(--color-primary-subtle)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = ""; e.currentTarget.style.background = ""; }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = "var(--color-primary)";
+                          e.currentTarget.style.background = "var(--color-primary-subtle)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = "";
+                          e.currentTarget.style.background = "";
+                        }}
                         aria-label="进入会话"
                         title="进入会话（消息/终端视图）"
                       >
@@ -365,8 +380,14 @@ export default function Sessions() {
                             onClick={() => handleViewTerminal(session)}
                             className="p-1.5 rounded-lg"
                             style={{ color: "var(--color-text-tertiary)", transition: "all var(--transition-fast)" }}
-                            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-primary)"; e.currentTarget.style.background = "var(--color-primary-subtle)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.color = ""; e.currentTarget.style.background = ""; }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = "var(--color-primary)";
+                              e.currentTarget.style.background = "var(--color-primary-subtle)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = "";
+                              e.currentTarget.style.background = "";
+                            }}
                             aria-label="查看终端"
                             title="快速打开终端"
                           >
@@ -376,8 +397,14 @@ export default function Sessions() {
                             onClick={() => handleTerminateSession(session.id)}
                             className="p-1.5 rounded-lg"
                             style={{ color: "var(--color-text-tertiary)", transition: "all var(--transition-fast)" }}
-                            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-danger)"; e.currentTarget.style.background = "var(--color-danger-light)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.color = ""; e.currentTarget.style.background = ""; }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = "var(--color-danger)";
+                              e.currentTarget.style.background = "var(--color-danger-light)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = "";
+                              e.currentTarget.style.background = "";
+                            }}
                             aria-label="终止会话"
                             title="终止会话"
                           >
@@ -436,18 +463,10 @@ export default function Sessions() {
               )}
             </div>
             <div className="modal-footer">
-              <button
-                className="btn-secondary"
-                onClick={() => setLinkTarget(null)}
-                disabled={linking}
-              >
+              <button className="btn-secondary" onClick={() => setLinkTarget(null)} disabled={linking}>
                 取消
               </button>
-              <button
-                className="btn-primary"
-                onClick={handleLinkConfirm}
-                disabled={linking || loadingTasks}
-              >
+              <button className="btn-primary" onClick={handleLinkConfirm} disabled={linking || loadingTasks}>
                 {linking ? "关联中..." : "确认"}
               </button>
             </div>
@@ -457,8 +476,18 @@ export default function Sessions() {
 
       {/* 终端弹窗 */}
       {showTerminal && selectedSession && (
-        <div className="modal-overlay" onClick={() => { setShowTerminal(false); setSelectedSession(null); }}>
-          <div className="w-[90vw] h-[80vh] rounded-xl overflow-hidden shadow-2xl" style={{ background: "var(--color-bg)" }} onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setShowTerminal(false);
+            setSelectedSession(null);
+          }}
+        >
+          <div
+            className="w-[90vw] h-[80vh] rounded-xl overflow-hidden shadow-2xl"
+            style={{ background: "var(--color-bg)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <AgentTerminal
               sessionId={selectedSession.id}
               agentName={selectedSession.agent_name || "Agent"}

@@ -1,6 +1,6 @@
-import { create } from 'zustand';
-import { listTasks, createTask, updateTaskStatus, deleteTask } from '../lib/tauri';
-import type { Task } from '../lib/types';
+import { create } from "zustand";
+import { listTasks, createTask, updateTaskStatus, deleteTask } from "../lib/tauri";
+import type { Task } from "../lib/types";
 
 interface TasksState {
   tasks: Task[];

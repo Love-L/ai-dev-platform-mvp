@@ -1,39 +1,39 @@
-import type { ReactElement } from 'react';
-import { render, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReactElement } from "react";
+import { render, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // 页面统一通过 `@tauri-apps/api/core` 的 invoke 访问后端，这里统一 mock。
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 // 部分页面订阅 Tauri 事件（如 RequirementDetail 的流式 PRD）
-vi.mock('@tauri-apps/api/event', () => ({
+vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
 }));
 // xterm（终端）与 tiptap（富文本）在 jsdom 下依赖较重，且与本冒烟测试目标无关
-vi.mock('../../components/AgentTerminal', () => ({ default: () => null }));
-vi.mock('../../components/RichTextEditor', () => ({ default: () => null }));
+vi.mock("../../components/AgentTerminal", () => ({ default: () => null }));
+vi.mock("../../components/RichTextEditor", () => ({ default: () => null }));
 
-import { invoke } from '@tauri-apps/api/core';
-import Workspace from '../Workspace';
-import Projects from '../Projects';
-import ProjectDetail from '../ProjectDetail';
-import Requirements from '../Requirements';
-import RequirementDetail from '../RequirementDetail';
-import Board from '../Board';
-import TaskDetail from '../TaskDetail';
-import SkillManagement from '../SkillManagement';
-import SkillEvolution from '../SkillEvolution';
-import Agents from '../Agents';
-import Sessions from '../Sessions';
-import SessionDetail from '../SessionDetail';
-import Commits from '../Commits';
-import Cost from '../Cost';
-import Statistics from '../Statistics';
-import AuditLog from '../AuditLog';
-import ImportExport from '../ImportExport';
-import SystemMonitor from '../SystemMonitor';
-import Settings from '../Settings';
-import Dashboard from '../Dashboard';
+import { invoke } from "@tauri-apps/api/core";
+import Workspace from "../Workspace";
+import Projects from "../Projects";
+import ProjectDetail from "../ProjectDetail";
+import Requirements from "../Requirements";
+import RequirementDetail from "../RequirementDetail";
+import Board from "../Board";
+import TaskDetail from "../TaskDetail";
+import SkillManagement from "../SkillManagement";
+import SkillEvolution from "../SkillEvolution";
+import Agents from "../Agents";
+import Sessions from "../Sessions";
+import SessionDetail from "../SessionDetail";
+import Commits from "../Commits";
+import Cost from "../Cost";
+import Statistics from "../Statistics";
+import AuditLog from "../AuditLog";
+import ImportExport from "../ImportExport";
+import SystemMonitor from "../SystemMonitor";
+import Settings from "../Settings";
+import Dashboard from "../Dashboard";
 
 const invokeMock = vi.mocked(invoke);
 
@@ -76,8 +76,8 @@ const COMMAND_DEFAULTS: Record<string, unknown> = {
     record_count: 0,
   },
   get_token_budget: {
-    id: 'budget-1',
-    scope: 'global',
+    id: "budget-1",
+    scope: "global",
     monthly_limit: 2000000,
     alert_threshold: 0.8,
     current_usage: 0,
@@ -101,8 +101,8 @@ const COMMAND_DEFAULTS: Record<string, unknown> = {
   },
 
   // Git
-  git_get_status: { branch: 'main', files: [], total_changes: 0 },
-  git_get_diff: '',
+  git_get_status: { branch: "main", files: [], total_changes: 0 },
+  git_get_diff: "",
 };
 
 interface PageCase {
@@ -113,34 +113,32 @@ interface PageCase {
 
 /** 覆盖 App.tsx 注册的全部路由页面，以及未挂载的 Dashboard 孤儿页面 */
 const PAGES: PageCase[] = [
-  { name: 'Workspace', entry: '/', element: <Workspace /> },
-  { name: 'Projects', entry: '/projects', element: <Projects /> },
-  { name: 'ProjectDetail', entry: '/projects/proj-1', element: <ProjectDetail /> },
-  { name: 'Requirements', entry: '/requirements', element: <Requirements /> },
-  { name: 'RequirementDetail', entry: '/requirements/req-1', element: <RequirementDetail /> },
-  { name: 'Board', entry: '/board', element: <Board /> },
-  { name: 'TaskDetail', entry: '/tasks/task-1', element: <TaskDetail /> },
-  { name: 'SkillManagement', entry: '/skills', element: <SkillManagement /> },
-  { name: 'SkillEvolution', entry: '/skills/skill-1/evolution', element: <SkillEvolution /> },
-  { name: 'Agents', entry: '/agents', element: <Agents /> },
-  { name: 'Sessions', entry: '/sessions', element: <Sessions /> },
-  { name: 'SessionDetail', entry: '/sessions/session-1', element: <SessionDetail /> },
-  { name: 'Commits', entry: '/commits', element: <Commits /> },
-  { name: 'Cost', entry: '/cost', element: <Cost /> },
-  { name: 'Statistics', entry: '/statistics', element: <Statistics /> },
-  { name: 'AuditLog', entry: '/audit-log', element: <AuditLog /> },
-  { name: 'ImportExport', entry: '/import-export', element: <ImportExport /> },
-  { name: 'SystemMonitor', entry: '/system-monitor', element: <SystemMonitor /> },
-  { name: 'Settings', entry: '/settings', element: <Settings /> },
-  { name: 'Dashboard（未挂载）', entry: '/dashboard', element: <Dashboard /> },
+  { name: "Workspace", entry: "/", element: <Workspace /> },
+  { name: "Projects", entry: "/projects", element: <Projects /> },
+  { name: "ProjectDetail", entry: "/projects/proj-1", element: <ProjectDetail /> },
+  { name: "Requirements", entry: "/requirements", element: <Requirements /> },
+  { name: "RequirementDetail", entry: "/requirements/req-1", element: <RequirementDetail /> },
+  { name: "Board", entry: "/board", element: <Board /> },
+  { name: "TaskDetail", entry: "/tasks/task-1", element: <TaskDetail /> },
+  { name: "SkillManagement", entry: "/skills", element: <SkillManagement /> },
+  { name: "SkillEvolution", entry: "/skills/skill-1/evolution", element: <SkillEvolution /> },
+  { name: "Agents", entry: "/agents", element: <Agents /> },
+  { name: "Sessions", entry: "/sessions", element: <Sessions /> },
+  { name: "SessionDetail", entry: "/sessions/session-1", element: <SessionDetail /> },
+  { name: "Commits", entry: "/commits", element: <Commits /> },
+  { name: "Cost", entry: "/cost", element: <Cost /> },
+  { name: "Statistics", entry: "/statistics", element: <Statistics /> },
+  { name: "AuditLog", entry: "/audit-log", element: <AuditLog /> },
+  { name: "ImportExport", entry: "/import-export", element: <ImportExport /> },
+  { name: "SystemMonitor", entry: "/system-monitor", element: <SystemMonitor /> },
+  { name: "Settings", entry: "/settings", element: <Settings /> },
+  { name: "Dashboard（未挂载）", entry: "/dashboard", element: <Dashboard /> },
 ];
 
-describe('页面渲染冒烟测试', () => {
+describe("页面渲染冒烟测试", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    invokeMock.mockImplementation(async (cmd: string) =>
-      cmd in COMMAND_DEFAULTS ? COMMAND_DEFAULTS[cmd] : []
-    );
+    invokeMock.mockImplementation(async (cmd: string) => (cmd in COMMAND_DEFAULTS ? COMMAND_DEFAULTS[cmd] : []));
   });
 
   PAGES.forEach(({ name, entry, element }) => {
@@ -150,7 +148,7 @@ describe('页面渲染冒烟测试', () => {
           <Routes>
             <Route path={entry} element={element} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
       await waitFor(() => {

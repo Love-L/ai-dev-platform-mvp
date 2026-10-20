@@ -77,7 +77,11 @@ export default function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
             <h2 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>
               {task ? "编辑任务" : "新建任务"}
             </h2>
-            <button onClick={onCancel} className="p-1 rounded-lg transition-colors" style={{ color: "var(--color-text-tertiary)" }}>
+            <button
+              onClick={onCancel}
+              className="p-1 rounded-lg transition-colors"
+              style={{ color: "var(--color-text-tertiary)" }}
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -101,7 +105,9 @@ export default function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
               maxLength={200}
             />
             {errors.title && (
-              <p className="text-xs mt-1" style={{ color: "var(--color-danger)" }}>{errors.title}</p>
+              <p className="text-xs mt-1" style={{ color: "var(--color-danger)" }}>
+                {errors.title}
+              </p>
             )}
           </div>
 
@@ -123,7 +129,12 @@ export default function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
               <label className="label">类型</label>
               <select
                 value={formData.task_type}
-                onChange={(e) => setFormData({ ...formData, task_type: e.target.value as "testing" | "requirement" | "development" | "bug_fix" | "review" })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    task_type: e.target.value as "testing" | "requirement" | "development" | "bug_fix" | "review",
+                  })
+                }
                 className="select"
               >
                 <option value="requirement">需求</option>
@@ -170,7 +181,9 @@ export default function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
                 style={errors.due_date ? { borderColor: "var(--color-danger)" } : undefined}
               />
               {errors.due_date && (
-                <p className="text-xs mt-1" style={{ color: "var(--color-danger)" }}>{errors.due_date}</p>
+                <p className="text-xs mt-1" style={{ color: "var(--color-danger)" }}>
+                  {errors.due_date}
+                </p>
               )}
             </div>
           </div>
@@ -190,7 +203,9 @@ export default function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
                 step="0.5"
               />
               {errors.estimated_hours && (
-                <p className="text-xs mt-1" style={{ color: "var(--color-danger)" }}>{errors.estimated_hours}</p>
+                <p className="text-xs mt-1" style={{ color: "var(--color-danger)" }}>
+                  {errors.estimated_hours}
+                </p>
               )}
             </div>
             <div>
@@ -255,11 +270,7 @@ export default function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
             disabled={!formData.title.trim() || loading || Object.keys(errors).length > 0}
             className="btn-primary"
           >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             保存
           </button>
         </div>

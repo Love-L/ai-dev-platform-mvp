@@ -40,7 +40,7 @@ export async function createRequirement(
   businessPriority?: string,
   estimatedEffort?: number,
   tags?: string,
-  notes?: string
+  notes?: string,
 ): Promise<Requirement> {
   return invoke("create_requirement", {
     title,
@@ -60,9 +60,7 @@ export async function createRequirement(
   });
 }
 
-export async function listRequirements(
-  status?: string
-): Promise<Requirement[]> {
+export async function listRequirements(status?: string): Promise<Requirement[]> {
   const result: any = await invoke("list_requirements", { status });
   // 后端返回 PagedResult<Requirement>，提取 items 数组
   return result.items || result;
@@ -91,7 +89,7 @@ export async function updateRequirement(
     estimatedEffort?: number;
     tags?: string;
     notes?: string;
-  }
+  },
 ): Promise<void> {
   return invoke("update_requirement", { id, ...updates });
 }
@@ -100,16 +98,13 @@ export async function deleteRequirement(id: string): Promise<void> {
   return invoke("delete_requirement", { id });
 }
 
-export async function generatePrd(
-  requirementId: string,
-  skillId?: string
-): Promise<string> {
+export async function generatePrd(requirementId: string, skillId?: string): Promise<string> {
   return invoke("generate_prd", { requirementId, skillId });
 }
 
 export async function enrichRequirement(
   requirementId: string,
-  extraContent?: string
+  extraContent?: string,
 ): Promise<Record<string, unknown>> {
   return invoke("enrich_requirement", { requirementId, extraContent });
 }
@@ -125,7 +120,7 @@ export async function enrichRequirement(
 export async function generatePrdStreaming(
   requirementId: string,
   skillId?: string,
-  extraContent?: string
+  extraContent?: string,
 ): Promise<string> {
   return invoke("generate_prd_streaming", { requirementId, skillId, extraContent });
 }
@@ -143,7 +138,7 @@ export interface SessionAttachment {
 export async function saveSessionAttachment(
   sessionId: string | null,
   fileName: string,
-  contents: number[]
+  contents: number[],
 ): Promise<SessionAttachment> {
   return invoke("save_session_attachment", { sessionId, fileName, contents });
 }
@@ -162,7 +157,7 @@ export async function createTask(
   blockedReason?: string,
   tags?: string,
   notes?: string,
-  description?: string
+  description?: string,
 ): Promise<Task> {
   return invoke("create_task", {
     title,
@@ -180,17 +175,11 @@ export async function createTask(
   });
 }
 
-export async function listTasks(
-  status?: string,
-  taskType?: string
-): Promise<Task[]> {
+export async function listTasks(status?: string, taskType?: string): Promise<Task[]> {
   return invoke("list_tasks", { status, taskType });
 }
 
-export async function updateTaskStatus(
-  id: string,
-  status: string
-): Promise<void> {
+export async function updateTaskStatus(id: string, status: string): Promise<void> {
   return invoke("update_task_status", { id, status });
 }
 
@@ -213,7 +202,7 @@ export async function updateTask(
     due_date?: string;
     tags?: string;
     project_id?: string;
-  }
+  },
 ): Promise<void> {
   // Tauri 命令参数按 camelCase 匹配；同时携带 snake_case 键以兼容历史行为
   return invoke("update_task", {
@@ -235,11 +224,7 @@ export async function listTasksByRequirement(requirementId: string): Promise<Tas
 
 // ==================== 任务评论 ====================
 
-export async function createTaskComment(
-  taskId: string,
-  author: string,
-  content: string
-): Promise<TaskComment> {
+export async function createTaskComment(taskId: string, author: string, content: string): Promise<TaskComment> {
   return invoke("create_task_comment", { taskId, author, content });
 }
 
@@ -293,10 +278,7 @@ export async function startStructuredSession(params: {
 }
 
 /** 下发一条用户指令（F077） */
-export async function sendSessionMessage(
-  sessionId: string,
-  content: string
-): Promise<SessionMessage> {
+export async function sendSessionMessage(sessionId: string, content: string): Promise<SessionMessage> {
   return invoke("send_session_message", { sessionId, content });
 }
 
@@ -304,7 +286,7 @@ export async function sendSessionMessage(
 export async function listSessionMessages(
   sessionId: string,
   beforeSeq?: number,
-  limit?: number
+  limit?: number,
 ): Promise<SessionMessagePage> {
   return invoke("list_session_messages", { sessionId, beforeSeq, limit });
 }
@@ -340,16 +322,11 @@ export async function getAgents(): Promise<Agent[]> {
   return invoke("get_agents");
 }
 
-export async function startAgent(
-  agentPath: string,
-  taskId?: string
-): Promise<AgentSession> {
+export async function startAgent(agentPath: string, taskId?: string): Promise<AgentSession> {
   return invoke("start_agent", { agentPath, taskId });
 }
 
-export async function createSessionFromTask(
-  taskId: string
-): Promise<AgentSession> {
+export async function createSessionFromTask(taskId: string): Promise<AgentSession> {
   return invoke("create_session_from_task", { taskId });
 }
 
@@ -359,10 +336,7 @@ export async function createSessionFromTask(
  * `taskId` 为 null 时解除关联；关联成功后会话列表的「任务」列（task_title）随之刷新，
  * 且会话上下文卡片/系统提示中的任务、需求链路同步更新。
  */
-export async function linkSessionTask(
-  sessionId: string,
-  taskId: string | null
-): Promise<void> {
+export async function linkSessionTask(sessionId: string, taskId: string | null): Promise<void> {
   return invoke("link_session_task", {
     sessionId,
     session_id: sessionId,
@@ -375,9 +349,7 @@ export async function stopAgent(sessionId: string): Promise<void> {
   return invoke("stop_agent", { sessionId });
 }
 
-export async function getAgentSessions(
-  agentId?: string
-): Promise<AgentSession[]> {
+export async function getAgentSessions(agentId?: string): Promise<AgentSession[]> {
   return invoke("get_agent_sessions", { agentId });
 }
 
@@ -399,10 +371,7 @@ export async function getTokenBudget(): Promise<TokenBudget | null> {
   return invoke("get_token_budget");
 }
 
-export async function setTokenBudget(
-  monthlyLimit: number,
-  alertThreshold: number
-): Promise<void> {
+export async function setTokenBudget(monthlyLimit: number, alertThreshold: number): Promise<void> {
   return invoke("set_token_budget", { monthlyLimit, alertThreshold });
 }
 
@@ -424,7 +393,7 @@ export async function createPrdSkill(
   name: string,
   skillType: string,
   description: string | null,
-  template: string
+  template: string,
 ): Promise<PrdSkill> {
   return invoke("create_prd_skill", { name, skillType, description, template });
 }
@@ -433,7 +402,7 @@ export async function updatePrdSkill(
   id: string,
   name: string | null,
   description: string | null,
-  template: string | null
+  template: string | null,
 ): Promise<void> {
   return invoke("update_prd_skill", { id, name, description, template });
 }
@@ -445,7 +414,7 @@ export async function deletePrdSkill(id: string): Promise<void> {
 export async function createCustomSkillFromBuiltin(
   parentId: string,
   name: string,
-  template: string | null
+  template: string | null,
 ): Promise<PrdSkill> {
   return invoke("create_custom_skill_from_builtin", { parentId, name, template });
 }
@@ -457,16 +426,14 @@ export async function analyzeSkills(): Promise<SkillSuggestion[]> {
   return invoke("analyze_skills");
 }
 
-export async function listSkillSuggestions(
-  skillId?: string
-): Promise<SkillSuggestion[]> {
+export async function listSkillSuggestions(skillId?: string): Promise<SkillSuggestion[]> {
   return invoke("list_skill_suggestions", { skillId });
 }
 
 /** luban-skill 模板四段解析 */
 export async function parseSkillTemplate(
   skillId?: string,
-  template?: string
+  template?: string,
 ): Promise<{
   sections: Record<string, string>;
   missing: string[];
@@ -480,54 +447,36 @@ export async function judgeSkill(skillId: string): Promise<SkillScore> {
   return invoke("judge_skill", { skillId });
 }
 
-export async function getSkillScoreHistory(
-  skillId: string
-): Promise<SkillScore[]> {
+export async function getSkillScoreHistory(skillId: string): Promise<SkillScore[]> {
   return invoke("get_skill_score_history", { skillId });
 }
 
 /** L2 优化器：返回草稿（不落库，需 diff 确认后 apply） */
-export async function optimizeSkill(
-  skillId: string
-): Promise<SkillOptimizeDraft> {
+export async function optimizeSkill(skillId: string): Promise<SkillOptimizeDraft> {
   return invoke("optimize_skill", { skillId });
 }
 
 /** 应用优化草稿（人在回路确认入口，version+1） */
-export async function applySkillSuggestion(
-  suggestionId: string,
-  newTemplate?: string
-): Promise<PrdSkill> {
+export async function applySkillSuggestion(suggestionId: string, newTemplate?: string): Promise<PrdSkill> {
   return invoke("apply_skill_suggestion", { suggestionId, newTemplate });
 }
 
 /** 应用 AI 优化草稿（无关联建议，version+1） */
-export async function applySkillDraft(
-  skillId: string,
-  newTemplate: string
-): Promise<PrdSkill> {
+export async function applySkillDraft(skillId: string, newTemplate: string): Promise<PrdSkill> {
   return invoke("apply_skill_draft", { skillId, newTemplate });
 }
 
-export async function listSkillVersions(
-  skillId: string
-): Promise<SkillVersion[]> {
+export async function listSkillVersions(skillId: string): Promise<SkillVersion[]> {
   return invoke("list_skill_versions", { skillId });
 }
 
 /** 棘轮回退：应用指定版本快照（写为新版本） */
-export async function revertSkillVersion(
-  skillId: string,
-  version: number
-): Promise<PrdSkill> {
+export async function revertSkillVersion(skillId: string, version: number): Promise<PrdSkill> {
   return invoke("revert_skill_version", { skillId, version });
 }
 
 /** 按 Skill 查询执行日志（进化视图日志 Tab） */
-export async function getSkillExecutionLogsBySkill(
-  skillId: string,
-  limit?: number
-): Promise<SkillExecutionLog[]> {
+export async function getSkillExecutionLogsBySkill(skillId: string, limit?: number): Promise<SkillExecutionLog[]> {
   return invoke("get_skill_execution_logs_by_skill", { skillId, limit });
 }
 
@@ -543,10 +492,7 @@ export async function getSetting(key: string): Promise<string | null> {
   return invoke("get_setting", { key });
 }
 
-export async function setSetting(
-  key: string,
-  value: string
-): Promise<void> {
+export async function setSetting(key: string, value: string): Promise<void> {
   return invoke("set_setting", { key, value });
 }
 
@@ -564,27 +510,26 @@ export async function decryptApiKey(encrypted: string, password: string): Promis
 
 export async function gitLog(
   workDir: string,
-  limit?: number
-): Promise<Array<{
-  hash: string;
-  short_hash: string;
-  message: string;
-  author: string;
-  date: string;
-}>> {
+  limit?: number,
+): Promise<
+  Array<{
+    hash: string;
+    short_hash: string;
+    message: string;
+    author: string;
+    date: string;
+  }>
+> {
   return invoke("git_log", { workDir, limit });
 }
 
 export async function gitGetStatus(
-  workDir: string
+  workDir: string,
 ): Promise<{ branch: string; files: Array<{ status: string; path: string }>; total_changes: number }> {
   return invoke("git_get_status", { workDir });
 }
 
-export async function gitGetDiff(
-  workDir: string,
-  filePath?: string
-): Promise<string> {
+export async function gitGetDiff(workDir: string, filePath?: string): Promise<string> {
   return invoke("git_get_diff", { workDir, filePath });
 }
 
@@ -592,18 +537,14 @@ export async function gitCreateCommit(
   workDir: string,
   message: string,
   taskId?: string,
-  sessionId?: string
+  sessionId?: string,
 ): Promise<any> {
   return invoke("git_create_commit", { workDir, message, taskId, sessionId });
 }
 
 // ==================== 项目管理 ====================
 
-export async function createProject(
-  name: string,
-  description?: string,
-  key?: string
-): Promise<Project> {
+export async function createProject(name: string, description?: string, key?: string): Promise<Project> {
   return invoke("create_project", { name, description, key });
 }
 
@@ -622,7 +563,7 @@ export async function updateProject(
     description?: string;
     key?: string;
     status?: string;
-  }
+  },
 ): Promise<void> {
   return invoke("update_project", { id, ...updates });
 }
@@ -633,9 +574,7 @@ export async function deleteProject(id: string): Promise<void> {
 
 // ==================== 项目 Skill 配置 ====================
 
-export async function listProjectSkills(
-  projectId: string
-): Promise<ProjectSkill[]> {
+export async function listProjectSkills(projectId: string): Promise<ProjectSkill[]> {
   return invoke("list_project_skills", { projectId });
 }
 
@@ -643,7 +582,7 @@ export async function addProjectSkill(
   projectId: string,
   skillId: string,
   isDefault?: boolean,
-  customParams?: string
+  customParams?: string,
 ): Promise<ProjectSkill> {
   return invoke("add_project_skill", {
     projectId,
@@ -659,9 +598,7 @@ export async function removeProjectSkill(id: string): Promise<void> {
 
 // ==================== 项目 MCP 配置 ====================
 
-export async function listProjectMcps(
-  projectId: string
-): Promise<ProjectMcp[]> {
+export async function listProjectMcps(projectId: string): Promise<ProjectMcp[]> {
   return invoke("list_project_mcps", { projectId });
 }
 
@@ -672,7 +609,7 @@ export async function addProjectMcp(
   description?: string,
   isDefault?: boolean,
   authConfig?: string,
-  customParams?: string
+  customParams?: string,
 ): Promise<ProjectMcp> {
   return invoke("add_project_mcp", {
     projectId,
@@ -719,7 +656,7 @@ export async function upsertStageSkillConfig(
   stage: string,
   skillId: string,
   isDefault?: boolean,
-  customParams?: string
+  customParams?: string,
 ): Promise<StageSkillConfig> {
   return invoke("upsert_stage_skill_config", {
     projectId,
@@ -740,16 +677,11 @@ export async function getPipelineStages(): Promise<PipelineStageOption[]> {
 
 // ==================== Skill/MCP 执行日志 ====================
 
-export async function getSkillExecutionLogs(
-  taskId?: string,
-  sessionId?: string
-): Promise<SkillExecutionLog[]> {
+export async function getSkillExecutionLogs(taskId?: string, sessionId?: string): Promise<SkillExecutionLog[]> {
   return invoke("get_skill_execution_logs", { taskId, sessionId });
 }
 
-export async function getMcpExecutionLogs(
-  sessionId: string
-): Promise<McpExecutionLog[]> {
+export async function getMcpExecutionLogs(sessionId: string): Promise<McpExecutionLog[]> {
   return invoke("get_mcp_execution_logs", { sessionId });
 }
 
@@ -767,10 +699,7 @@ export interface AuditLogEntry {
   entity_title?: string;
 }
 
-export async function getAuditLogs(
-  limit?: number,
-  entityType?: string
-): Promise<AuditLogEntry[]> {
+export async function getAuditLogs(limit?: number, entityType?: string): Promise<AuditLogEntry[]> {
   return invoke("get_audit_logs", { limit, entityType });
 }
 
@@ -788,11 +717,7 @@ export interface GitCommitRecord {
   created_at: string;
 }
 
-export async function listGitCommits(
-  taskId?: string,
-  sessionId?: string,
-  limit?: number
-): Promise<GitCommitRecord[]> {
+export async function listGitCommits(taskId?: string, sessionId?: string, limit?: number): Promise<GitCommitRecord[]> {
   return invoke("list_git_commits", { taskId, sessionId, limit });
 }
 
@@ -814,11 +739,7 @@ export async function exportData(): Promise<Record<string, unknown>> {
   return invoke("export_data");
 }
 
-export async function importData(
-  payload: string,
-  replace = false,
-  dryRun = false
-): Promise<ImportResult> {
+export async function importData(payload: string, replace = false, dryRun = false): Promise<ImportResult> {
   return invoke("import_data", { payload, replace, dryRun });
 }
 
@@ -873,11 +794,7 @@ export interface PtySessionInfo {
   exit_code?: number | null;
 }
 
-export async function ptySpawn(
-  agentPath: string,
-  workDir: string,
-  envVars?: [string, string][]
-): Promise<string> {
+export async function ptySpawn(agentPath: string, workDir: string, envVars?: [string, string][]): Promise<string> {
   return invoke("pty_spawn", { agentPath, workDir, envVars });
 }
 

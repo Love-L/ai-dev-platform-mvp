@@ -1,9 +1,11 @@
 # CLAUDE.md
 
 ## 项目概述
+
 AI Collaboration Engine (ACE) - 基于Tauri 2.0的桌面应用，用于AI辅助研发协作。
 
 ## 技术栈
+
 - **前端**: React + TypeScript + Tailwind CSS + Zustand
 - **后端**: Rust + Tauri 2.0
 - **数据库**: SQLite (WAL模式)
@@ -11,6 +13,7 @@ AI Collaboration Engine (ACE) - 基于Tauri 2.0的桌面应用，用于AI辅助�
 - **UI组件**: Lucide Icons, Framer Motion
 
 ## 开发命令
+
 ```bash
 # 安装依赖
 npm install
@@ -53,6 +56,7 @@ npm run test:watch
 > 需在 Victauri 测试运行环境中才会实际执行，属设计行为而非缺失。
 
 ## 项目结构
+
 ```
 ├── src/                    # 前端代码
 │   ├── components/        # 共享组件（含 SessionChat/SessionInput/MessageBubble）
@@ -72,21 +76,25 @@ npm run test:watch
 ```
 
 ## 代码规范
+
 - **Rust**: 使用rustfmt格式化，clippy检查
 - **TypeScript**: 使用eslint + prettier
 - **提交信息**: 遵循Conventional Commits规范
 
 ## 数据库
+
 - 使用SQLite WAL模式提升并发性能
 - 通过migration.rs管理数据库版本
 - 所有表使用TEXT类型的UUID作为主键
 
 ## 关键设计模式
+
 - **Service层**: 所有业务逻辑通过Service访问数据库
 - **缓存**: 使用CacheWrapper进行内存缓存
 - **错误处理**: 使用AppError枚举统一错误类型
 
 <!-- VICTAURI:BEGIN (added by `victauri init` — delete this block to opt out) -->
+
 ## Victauri (App Inspection & Testing)
 
 This app has **Victauri** integrated — an MCP server embedded inside the Tauri process
@@ -99,6 +107,7 @@ everything, not just the webview.
 
 Key Victauri tools (the read-only backend/DB introspection below has no CDP/Playwright
 equivalent — and on macOS/Linux CDP can't attach to a Tauri webview at all):
+
 - `invoke_command` — call any registered Tauri command directly (also records timing and
   honours fault injection; an eval-capable tool can also reach `__TAURI_INTERNALS__.invoke`)
 - `verify_state` — cross-boundary frontend/backend state verification
@@ -116,12 +125,12 @@ equivalent — and on macOS/Linux CDP can't attach to a Tauri webview at all):
 `.mcp.json` connects through `victauri bridge` — a stdio proxy that **discovers the running
 app's port at connect time and re-discovers on restart**, so you are never pinned to a stale
 or wrong port. Do **not** replace it with a fixed `"url": "http://127.0.0.1:7373/mcp"`: a
-hardcoded port can point at a *different* Victauri app (e.g. a leftover demo) and every call
+hardcoded port can point at a _different_ Victauri app (e.g. a leftover demo) and every call
 then fails with `422`/`404`. The bridge avoids that by design.
 
 - **The server connects even before the app is running.** The bridge answers the MCP
   handshake itself, so `victauri` shows up connected in a fresh terminal whether or not the
-  app is up. While the app is down the tool list is a static fallback and a tool *call*
+  app is up. While the app is down the tool list is a static fallback and a tool _call_
   returns a clear "backend not reachable — start the app" error (not a hang). Start the app
   (`npm run tauri dev` / `pnpm tauri dev`) and the bridge connects automatically — tools go
   live with **no `/mcp` reconnect**. So if a call reports the backend unreachable, the fix is

@@ -123,9 +123,7 @@ export default function Layout() {
                     end={item.to === "/"}
                     className={({ isActive }) =>
                       `group flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[13px] font-medium transition-all duration-150 ${
-                        isActive
-                          ? "text-blue-600"
-                          : ""
+                        isActive ? "text-blue-600" : ""
                       }`
                     }
                     style={({ isActive }) => ({
@@ -153,10 +151,7 @@ export default function Layout() {
         </nav>
 
         {/* 底部设置入口 */}
-        <div
-          className="p-2.5 border-t"
-          style={{ borderColor: "var(--color-border-subtle)" }}
-        >
+        <div className="p-2.5 border-t" style={{ borderColor: "var(--color-border-subtle)" }}>
           <NavLink
             to="/settings"
             className={() =>
@@ -167,11 +162,7 @@ export default function Layout() {
               color: isActive ? "var(--color-text)" : "var(--color-text-secondary)",
             })}
           >
-            <Settings
-              className="w-4 h-4"
-              style={{ color: "var(--color-text-tertiary)" }}
-              strokeWidth={1.75}
-            />
+            <Settings className="w-4 h-4" style={{ color: "var(--color-text-tertiary)" }} strokeWidth={1.75} />
             <span>设置</span>
           </NavLink>
         </div>
@@ -180,11 +171,7 @@ export default function Layout() {
       {/* 主内容区 */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <main className="flex-1 overflow-auto">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.15 }}
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}>
             <Outlet />
           </motion.div>
         </main>

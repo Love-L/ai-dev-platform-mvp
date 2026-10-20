@@ -1,14 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import {
-  FileText,
-  Columns,
-  ArrowRight,
-  Coins,
-  CheckCircle,
-  TrendingUp,
-} from "lucide-react";
+import { FileText, Columns, ArrowRight, Coins, CheckCircle, TrendingUp } from "lucide-react";
 import { discoverAgents, getStatistics } from "../lib/tauri";
 import type { Agent, StatisticsData } from "../lib/types";
 import { useRequirementsStore, useTasksStore } from "../stores";
@@ -31,10 +24,7 @@ export default function Dashboard() {
 
   async function loadData() {
     try {
-      const [agts, statsData] = await Promise.all([
-        discoverAgents(),
-        getStatistics(),
-      ]);
+      const [agts, statsData] = await Promise.all([discoverAgents(), getStatistics()]);
       setAgents(agts);
       setStats(statsData);
     } catch (error) {
@@ -101,13 +91,13 @@ export default function Dashboard() {
   return (
     <div className="p-6 space-y-6">
       {/* 页面标题 */}
-      <motion.div
-        initial={{ opacity: 0, y: -6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-      >
-        <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>仪表盘</h1>
-        <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>AI研发协作平台概览</p>
+      <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+        <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>
+          仪表盘
+        </h1>
+        <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+          AI研发协作平台概览
+        </p>
       </motion.div>
 
       {/* 统计卡片 */}
@@ -125,13 +115,11 @@ export default function Dashboard() {
                 <card.icon className="w-5 h-5" style={{ color: card.color }} strokeWidth={1.75} />
               </div>
               <div>
-                <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>{card.label}</p>
+                <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+                  {card.label}
+                </p>
                 <p className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>
-                  {typeof card.value === "number" ? (
-                    <AnimatedNumber value={card.value} duration={1.5} />
-                  ) : (
-                    card.value
-                  )}
+                  {typeof card.value === "number" ? <AnimatedNumber value={card.value} duration={1.5} /> : card.value}
                 </p>
               </div>
             </div>
@@ -172,14 +160,19 @@ export default function Dashboard() {
                   to={`/requirements/${req.id}`}
                   className="flex items-center justify-between p-2.5 rounded-lg transition-colors group"
                   style={{ transition: "background var(--transition-fast)" }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-subtle)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = ""}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-primary-subtle)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "")}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate transition-colors" style={{ color: "var(--color-text)" }}>
+                    <p
+                      className="text-sm font-medium truncate transition-colors"
+                      style={{ color: "var(--color-text)" }}
+                    >
                       {req.title}
                     </p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>优先级 {req.priority}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+                      优先级 {req.priority}
+                    </p>
                   </div>
                   <StatusBadge status={req.status} />
                 </Link>
@@ -197,11 +190,7 @@ export default function Dashboard() {
         >
           <div className="panel-header">
             <h2 className="panel-title">进行中的任务</h2>
-            <Link
-              to="/board"
-              className="text-xs flex items-center gap-1"
-              style={{ color: "var(--color-primary)" }}
-            >
+            <Link to="/board" className="text-xs flex items-center gap-1" style={{ color: "var(--color-primary)" }}>
               查看看板
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -217,10 +206,18 @@ export default function Dashboard() {
                 .filter((t) => t.status === "in_progress")
                 .slice(0, 5)
                 .map((task) => (
-                  <div key={task.id} className="flex items-center justify-between p-2.5 rounded-lg transition-colors" style={{ transition: "background var(--transition-fast)" }}>
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between p-2.5 rounded-lg transition-colors"
+                    style={{ transition: "background var(--transition-fast)" }}
+                  >
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate" style={{ color: "var(--color-text)" }}>{task.title}</p>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>{task.agent_type || "未分配"}</p>
+                      <p className="text-sm font-medium truncate" style={{ color: "var(--color-text)" }}>
+                        {task.title}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+                        {task.agent_type || "未分配"}
+                      </p>
                     </div>
                     <TaskTypeBadge type={task.task_type} />
                   </div>
@@ -238,11 +235,7 @@ export default function Dashboard() {
         >
           <div className="panel-header">
             <h2 className="panel-title">Agent 状态</h2>
-            <Link
-              to="/agents"
-              className="text-xs flex items-center gap-1"
-              style={{ color: "var(--color-primary)" }}
-            >
+            <Link to="/agents" className="text-xs flex items-center gap-1" style={{ color: "var(--color-primary)" }}>
               管理
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -255,10 +248,18 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-0.5">
               {agents.map((agent) => (
-                <div key={agent.id} className="flex items-center justify-between p-2.5 rounded-lg transition-colors" style={{ transition: "background var(--transition-fast)" }}>
+                <div
+                  key={agent.id}
+                  className="flex items-center justify-between p-2.5 rounded-lg transition-colors"
+                  style={{ transition: "background var(--transition-fast)" }}
+                >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{agent.display_name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>{agent.version || "版本未知"}</p>
+                    <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
+                      {agent.display_name}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+                      {agent.version || "版本未知"}
+                    </p>
                   </div>
                   <StatusBadge status={agent.status} />
                 </div>

@@ -1,11 +1,7 @@
-import { create } from 'zustand';
-import { listen } from '@tauri-apps/api/event';
-import {
-  listSessionMessages,
-  sendSessionMessage,
-  interruptSession,
-} from '../lib/tauri';
-import type { SessionMessage, SessionDelta, SessionNotice } from '../lib/types';
+import { create } from "zustand";
+import { listen } from "@tauri-apps/api/event";
+import { listSessionMessages, sendSessionMessage, interruptSession } from "../lib/tauri";
+import type { SessionMessage, SessionDelta, SessionNotice } from "../lib/types";
 
 const PAGE_SIZE = 100;
 
@@ -45,8 +41,8 @@ interface SessionMessagesState {
 export const useSessionMessagesStore = create<SessionMessagesState>((set, get) => ({
   sessionId: null,
   messages: [],
-  streamingText: '',
-  streamingThinking: '',
+  streamingText: "",
+  streamingThinking: "",
   thinkingTokens: 0,
   loading: false,
   sending: false,
@@ -57,15 +53,15 @@ export const useSessionMessagesStore = create<SessionMessagesState>((set, get) =
     set({
       sessionId,
       messages: [],
-      streamingText: '',
-      streamingThinking: '',
+      streamingText: "",
+      streamingThinking: "",
       thinkingTokens: 0,
       error: null,
       loading: true,
     });
 
     const unlistenMessage = await listen<{ session_id: string; message: SessionMessage }>(
-      'session:message',
+      "session:message",
       (event) => {
         if (event.payload.session_id !== sessionId) return;
         const msg = event.payload.message;
@@ -75,30 +71,30 @@ export const useSessionMessagesStore = create<SessionMessagesState>((set, get) =
           return {
             messages: next,
             // 完整块到达后清空对应增量缓冲
-            streamingText: msg.block_type === 'text' ? '' : state.streamingText,
-            streamingThinking: msg.block_type === 'thinking' ? '' : state.streamingThinking,
+            streamingText: msg.block_type === "text" ? "" : state.streamingText,
+            streamingThinking: msg.block_type === "thinking" ? "" : state.streamingThinking,
           };
         });
-      }
+      },
     );
 
-    const unlistenDelta = await listen<SessionDelta>('session:delta', (event) => {
+    const unlistenDelta = await listen<SessionDelta>("session:delta", (event) => {
       if (event.payload.session_id !== sessionId) return;
       const { block_type, delta, total } = event.payload;
-      if (block_type === 'thinking_tokens') {
+      if (block_type === "thinking_tokens") {
         set({ thinkingTokens: total ?? (Number(delta) || 0) });
         return;
       }
-      if (block_type === 'thinking') {
+      if (block_type === "thinking") {
         set((state) => ({ streamingThinking: state.streamingThinking + delta }));
         return;
       }
       set((state) => ({ streamingText: state.streamingText + delta }));
     });
 
-    const unlistenNotice = await listen<SessionNotice>('session:notice', (event) => {
+    const unlistenNotice = await listen<SessionNotice>("session:notice", (event) => {
       if (event.payload.session_id !== sessionId) return;
-      if (event.payload.level === 'info') return;
+      if (event.payload.level === "info") return;
       set({ error: event.payload.message });
     });
 
@@ -170,8 +166,8 @@ export const useSessionMessagesStore = create<SessionMessagesState>((set, get) =
     set({
       sessionId: null,
       messages: [],
-      streamingText: '',
-      streamingThinking: '',
+      streamingText: "",
+      streamingThinking: "",
       thinkingTokens: 0,
       loading: false,
       sending: false,

@@ -15,36 +15,36 @@
 
 以下功能 MVP 阶段不实现，纳入后续版本迭代：
 
-| 项目 | MVP | v2.2 | v3.0+ |
-|------|-----|------|-------|
-| 多用户/多角色 | ✗ | ✗ | 视需求 |
-| 移动端/Web端 | ✗ | ✗ | 视需求 |
-| 云端同步 | ✗ | ✗ | 视需求 |
-| 实时多人协作 | ✗ | ✗ | 视需求 |
-| CI/CD 集成 | ✗ | ✓ 视需求 | — |
-| 自动更新 | ✗ | ✓ | — |
+| 项目          | MVP | v2.2     | v3.0+  |
+| ------------- | --- | -------- | ------ |
+| 多用户/多角色 | ✗   | ✗        | 视需求 |
+| 移动端/Web端  | ✗   | ✗        | 视需求 |
+| 云端同步      | ✗   | ✗        | 视需求 |
+| 实时多人协作  | ✗   | ✗        | 视需求 |
+| CI/CD 集成    | ✗   | ✓ 视需求 | —      |
+| 自动更新      | ✗   | ✓        | —      |
 
 **MVP 已纳入的功能（原属Out of Scope，已调整）：**
 
-| 项目 | MVP方案 |
-|------|---------|
-| 富文本编辑器 | 引入 TipTap 编辑器用于需求描述/验收标准 |
-| 附件上传 | MVP做文件路径引用（不上传文件），存储路径到DB |
+| 项目         | MVP方案                                       |
+| ------------ | --------------------------------------------- |
+| 富文本编辑器 | 引入 TipTap 编辑器用于需求描述/验收标准       |
+| 附件上传     | MVP做文件路径引用（不上传文件），存储路径到DB |
 
 ### 1.3 非功能需求
 
-| 维度 | 要求 |
-|------|------|
-| 数据库上限 | 单库不超过 100MB，超过时提示归档 |
-| 并发会话 | 最大同时运行 3 个 Agent 会话 |
-| 页面加载 | 列表页 < 500ms（1000条数据内） |
-| 状态栏轮询 | 2秒间隔，页面不可见时暂停（document.visibilitychange） |
-| 离线可用 | 完全离线运行，无需网络（除 LLM API 调用） |
-| 数据备份 | 启动时自动备份 db 文件到 `backups/` 目录，保留最近 5 份 |
-| API Key安全 | AES-256-GCM加密存储，密钥从硬件ID派生 |
-| 会话日志清理 | 已终止超过30天的会话自动清空 output_log |
-| 国际化 | 暂不支持，仅中文 |
-| 可访问性 | 暂不做 WCAG 适配 |
+| 维度         | 要求                                                    |
+| ------------ | ------------------------------------------------------- |
+| 数据库上限   | 单库不超过 100MB，超过时提示归档                        |
+| 并发会话     | 最大同时运行 3 个 Agent 会话                            |
+| 页面加载     | 列表页 < 500ms（1000条数据内）                          |
+| 状态栏轮询   | 2秒间隔，页面不可见时暂停（document.visibilitychange）  |
+| 离线可用     | 完全离线运行，无需网络（除 LLM API 调用）               |
+| 数据备份     | 启动时自动备份 db 文件到 `backups/` 目录，保留最近 5 份 |
+| API Key安全  | AES-256-GCM加密存储，密钥从硬件ID派生                   |
+| 会话日志清理 | 已终止超过30天的会话自动清空 output_log                 |
+| 国际化       | 暂不支持，仅中文                                        |
+| 可访问性     | 暂不做 WCAG 适配                                        |
 
 ---
 
@@ -55,24 +55,25 @@
 ### 需求1：需求管理增强
 
 #### 目标
+
 对标 TAPD 需求管理，补齐字段，完善详情页功能。
 
 #### 新增字段
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `module` | TEXT 下拉 | 否 | 所属模块：前端/后端/算法/数据/运维 |
-| `owner` | TEXT | 否 | 需求负责人 |
-| `developer` | TEXT | 否 | 开发负责人 |
-| `tester` | TEXT | 否 | 测试负责人 |
-| `source` | TEXT 下拉 | 否 | 需求来源：客户/内部/竞品/技术驱动 |
-| `current_node` | TEXT | 是 | 当前节点（替代简单status） |
-| `estimated_cost` | INTEGER | 否 | 预估Token消耗 |
-| `actual_cost` | INTEGER | 否 | 实际Token消耗（自动累计） |
-| `acceptance_criteria` | TEXT | 否 | 验收标准 |
-| `iteration` | TEXT | 否 | 迭代版本 |
-| `parent_id` | TEXT | 否 | 父需求ID（支持需求拆分） |
-| `attachment_paths` | TEXT | 否 | 附件文件路径（JSON数组，逗号分隔） |
+| 字段                  | 类型      | 必填 | 说明                               |
+| --------------------- | --------- | ---- | ---------------------------------- |
+| `module`              | TEXT 下拉 | 否   | 所属模块：前端/后端/算法/数据/运维 |
+| `owner`               | TEXT      | 否   | 需求负责人                         |
+| `developer`           | TEXT      | 否   | 开发负责人                         |
+| `tester`              | TEXT      | 否   | 测试负责人                         |
+| `source`              | TEXT 下拉 | 否   | 需求来源：客户/内部/竞品/技术驱动  |
+| `current_node`        | TEXT      | 是   | 当前节点（替代简单status）         |
+| `estimated_cost`      | INTEGER   | 否   | 预估Token消耗                      |
+| `actual_cost`         | INTEGER   | 否   | 实际Token消耗（自动累计）          |
+| `acceptance_criteria` | TEXT      | 否   | 验收标准                           |
+| `iteration`           | TEXT      | 否   | 迭代版本                           |
+| `parent_id`           | TEXT      | 否   | 父需求ID（支持需求拆分）           |
+| `attachment_paths`    | TEXT      | 否   | 附件文件路径（JSON数组，逗号分隔） |
 
 #### 状态流转规则
 
@@ -86,15 +87,15 @@ draft → reviewing → approved → in_development → testing → completed
 
 #### 详情页功能
 
-| 功能 | 说明 | 优先级 |
-|------|------|--------|
-| 基本信息编辑 | 标题/描述/优先级/状态/模块/负责人等 | P0 |
-| 富文本描述 | TipTap编辑器，支持标题/列表/加粗/代码块/链接 | P0 |
-| 附件管理 | 文件路径引用（选择本地文件路径，存DB不上传） | P0 |
-| 关联任务列表 | 展示该需求下的所有任务，支持创建 | P0 |
-| PRD文档 | Markdown渲染 + AI生成 | P0 |
-| 操作历史 | 展示 `requirement_history` 记录 | P1 |
-| 需求树 | 展示父子需求关系 | P2 |
+| 功能         | 说明                                         | 优先级 |
+| ------------ | -------------------------------------------- | ------ |
+| 基本信息编辑 | 标题/描述/优先级/状态/模块/负责人等          | P0     |
+| 富文本描述   | TipTap编辑器，支持标题/列表/加粗/代码块/链接 | P0     |
+| 附件管理     | 文件路径引用（选择本地文件路径，存DB不上传） | P0     |
+| 关联任务列表 | 展示该需求下的所有任务，支持创建             | P0     |
+| PRD文档      | Markdown渲染 + AI生成                        | P0     |
+| 操作历史     | 展示 `requirement_history` 记录              | P1     |
+| 需求树       | 展示父子需求关系                             | P2     |
 
 #### 验收标准
 
@@ -120,45 +121,46 @@ And 可从详情页直接创建新任务
 
 #### 异常流程
 
-| 异常 | 处理 |
-|------|------|
-| 标题为空 | 前端拦截，按钮置灰 |
-| 标题超200字符 | 前端截断提示 |
-| 非法状态流转 | 后端校验，返回错误码 `INVALID_TRANSITION` |
-| 关联任务已删除 | 需求详情展示"已删除"标记，不报错 |
+| 异常           | 处理                                      |
+| -------------- | ----------------------------------------- |
+| 标题为空       | 前端拦截，按钮置灰                        |
+| 标题超200字符  | 前端截断提示                              |
+| 非法状态流转   | 后端校验，返回错误码 `INVALID_TRANSITION` |
+| 关联任务已删除 | 需求详情展示"已删除"标记，不报错          |
 
 ---
 
 ### 需求2：任务管理增强
 
 #### 目标
+
 对标 TAPD 任务管理，补齐字段，新增详情页。
 
 #### 新增字段
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `project_id` | TEXT | 否 | 所属项目（已有，UI未使用） |
-| `requirement_id` | TEXT | 否 | 关联需求（已有，UI未使用） |
-| `assignee` | TEXT | 否 | 执行人（AI Agent 或人工） |
-| `description` | TEXT | 否 | 任务描述 |
-| `estimated_tokens` | INTEGER | 否 | 预估Token |
-| `due_date` | TEXT | 否 | 截止日期 |
-| `tags` | TEXT | 否 | 标签（逗号分隔） |
-| `skill_config` | TEXT | 否 | 使用的Skill ID |
-| `mcp_config` | TEXT | 否 | 使用的MCP配置 |
-| `acceptance_criteria` | TEXT | 否 | 验收标准 |
-| `blocked_by` | TEXT | 否 | 前置任务ID |
+| 字段                  | 类型    | 必填 | 说明                       |
+| --------------------- | ------- | ---- | -------------------------- |
+| `project_id`          | TEXT    | 否   | 所属项目（已有，UI未使用） |
+| `requirement_id`      | TEXT    | 否   | 关联需求（已有，UI未使用） |
+| `assignee`            | TEXT    | 否   | 执行人（AI Agent 或人工）  |
+| `description`         | TEXT    | 否   | 任务描述                   |
+| `estimated_tokens`    | INTEGER | 否   | 预估Token                  |
+| `due_date`            | TEXT    | 否   | 截止日期                   |
+| `tags`                | TEXT    | 否   | 标签（逗号分隔）           |
+| `skill_config`        | TEXT    | 否   | 使用的Skill ID             |
+| `mcp_config`          | TEXT    | 否   | 使用的MCP配置              |
+| `acceptance_criteria` | TEXT    | 否   | 验收标准                   |
+| `blocked_by`          | TEXT    | 否   | 前置任务ID                 |
 
 #### 详情页功能
 
-| 功能 | 说明 | 优先级 |
-|------|------|--------|
-| 基本信息编辑 | 全字段可编辑 | P0 |
-| 关联需求展示 | 显示所属需求标题，可跳转 | P0 |
-| 执行终端 | 内嵌 AgentTerminal 组件 | P0 |
-| 操作日志 | 状态变更历史 | P1 |
-| 评论区 | 开发备注，支持文本输入，按时间排序 | P1 |
+| 功能         | 说明                               | 优先级 |
+| ------------ | ---------------------------------- | ------ |
+| 基本信息编辑 | 全字段可编辑                       | P0     |
+| 关联需求展示 | 显示所属需求标题，可跳转           | P0     |
+| 执行终端     | 内嵌 AgentTerminal 组件            | P0     |
+| 操作日志     | 状态变更历史                       | P1     |
+| 评论区       | 开发备注，支持文本输入，按时间排序 | P1     |
 
 #### 评论功能设计
 
@@ -175,12 +177,12 @@ task_comments 表：
 
 #### 看板增强
 
-| 增强项 | 说明 |
-|--------|------|
-| 卡片信息 | 增加执行人、截止日、关联需求 |
-| 筛选器 | 按项目/执行人/优先级/标签筛选 |
-| 新增列 | 增加 "blocked" 列 |
-| 点击卡片 | 打开任务详情页（非弹窗） |
+| 增强项   | 说明                          |
+| -------- | ----------------------------- |
+| 卡片信息 | 增加执行人、截止日、关联需求  |
+| 筛选器   | 按项目/执行人/优先级/标签筛选 |
+| 新增列   | 增加 "blocked" 列             |
+| 点击卡片 | 打开任务详情页（非弹窗）      |
 
 #### 验收标准
 
@@ -201,18 +203,19 @@ Then 显示完整信息、执行日志、终端历史输出
 
 #### 异常流程
 
-| 异常 | 处理 |
-|------|------|
-| 标题为空 | 前端拦截 |
-| 关联的需求已被删除 | 显示"需求已删除"标记，不阻塞 |
-| 截止日期早于创建日期 | 前端校验拒绝 |
-| 前置任务不存在 | 后端校验，返回 `DEPENDENCY_NOT_FOUND` |
+| 异常                 | 处理                                  |
+| -------------------- | ------------------------------------- |
+| 标题为空             | 前端拦截                              |
+| 关联的需求已被删除   | 显示"需求已删除"标记，不阻塞          |
+| 截止日期早于创建日期 | 前端校验拒绝                          |
+| 前置任务不存在       | 后端校验，返回 `DEPENDENCY_NOT_FOUND` |
 
 ---
 
 ### 需求3：项目-需求-任务联动
 
 #### 目标
+
 三级数据全链路打通，任何入口都能穿透到关联数据。
 
 #### 联动规则
@@ -225,13 +228,13 @@ Then 显示完整信息、执行日志、终端历史输出
 
 #### 项目详情页新增 Tab
 
-| Tab | 内容 |
-|-----|------|
-| 概览 | 已有：基本信息编辑 |
-| 需求 | 新增：该项目下所有需求列表，支持筛选/新建 |
-| 任务 | 新增：该项目下所有任务列表，支持筛选/新建 |
-| Skill | 已有：Skill配置 |
-| MCP | 已有：MCP配置 |
+| Tab   | 内容                                      |
+| ----- | ----------------------------------------- |
+| 概览  | 已有：基本信息编辑                        |
+| 需求  | 新增：该项目下所有需求列表，支持筛选/新建 |
+| 任务  | 新增：该项目下所有任务列表，支持筛选/新建 |
+| Skill | 已有：Skill配置                           |
+| MCP   | 已有：MCP配置                             |
 
 #### 全局项目选择器
 
@@ -261,35 +264,39 @@ And 项目A的需求列表自动刷新
 ### 需求4：CLI终端双模式
 
 #### 目标
+
 支持自动/手动两种会话开启模式，会话输出可查看。
 
 #### 两种模式
 
-| 模式 | 触发条件 | 行为 |
-|------|---------|------|
-| **自动模式** | 任务状态变为 `in_progress` | 自动创建AgentSession并启动终端 |
+| 模式         | 触发条件                   | 行为                                     |
+| ------------ | -------------------------- | ---------------------------------------- |
+| **自动模式** | 任务状态变为 `in_progress` | 自动创建AgentSession并启动终端           |
 | **手动模式** | 任务状态变为 `in_progress` | 任务详情页显示"开启会话"按钮，由人工决定 |
 
 #### 设置开关
 
 在 Settings 页面增加：
+
 ```
 会话模式：[● 自动模式  ○ 手动模式]
 ```
+
 存储到 `settings` 表：`session_mode = "auto" | "manual"`
 
 #### 会话输出方案
 
-| 维度 | 方案 |
-|------|------|
-| 实时输出 | PTY 事件通过 Tauri event 系统推送到前端（修复 T24） |
-| 输出存储 | **SQLite blob**：`agent_sessions.output_log` BLOB 字段 |
-| 历史回放 | 读取 blob 数据，逐行渲染到终端组件 |
-| 存储上限 | 单会话日志最大 10MB（约10万行），超过时截断头部 |
-| 定期清理 | 已终止超过 30 天的会话自动清空 output_log（保留元数据） |
+| 维度     | 方案                                                                                                                                                             |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 实时输出 | PTY 事件通过 Tauri event 系统推送到前端（修复 T24）                                                                                                              |
+| 输出存储 | **SQLite blob**：`agent_sessions.output_log` BLOB 字段                                                                                                           |
+| 历史回放 | 读取 blob 数据，逐行渲染到终端组件                                                                                                                               |
+| 存储上限 | 单会话日志最大 10MB（约10万行），超过时截断头部                                                                                                                  |
+| 定期清理 | 已终止超过 30 天的会话自动清空 output_log（保留元数据）                                                                                                          |
 | 清理策略 | 启动时执行 `DELETE FROM agent_sessions WHERE status IN ('completed','failed','terminated') AND ended_at < datetime('now','-30 days') AND output_log IS NOT NULL` |
 
 **选择SQLite blob的理由：**
+
 - 与现有数据模型一致，无需额外文件系统管理
 - 单机场景下blob查询效率可接受
 - 便于事务一致性（会话元数据+日志在同一DB）
@@ -324,6 +331,7 @@ And 可继续实时查看新输出
 ### 需求5：Skill替换
 
 #### 目标
+
 内置Skill可派生自定义版本，支持编辑和切换。
 
 #### Skill版本模型
@@ -373,20 +381,21 @@ And 可在任务详情中切换为其他Skill
 ### 需求6：Skill管理后台
 
 #### 目标
+
 独立管理页，查看Skill使用情况和执行日志。
 
 #### Skill管理页功能
 
-| 功能 | 说明 | 优先级 |
-|------|------|--------|
-| Skill列表 | 展示所有Skill（内置+自定义），支持筛选 | P0 |
-| 新建Skill | 从零创建自定义Skill | P0 |
-| 编辑Skill | 编辑模板内容（CodeMirror Markdown编辑器，语法高亮） | P0 |
-| 删除Skill | 自定义可删，内置不可删 | P0 |
-| 执行日志 | 查看 `skill_execution_logs`，按Skill分组 | P1 |
-| 使用统计 | 调用次数/成功率/Token消耗 | P1 |
-| 迭代建议 | 基于执行日志自动生成优化建议 | P1 |
-| 导入/导出 | JSON格式导入导出Skill模板 | P2 |
+| 功能      | 说明                                                | 优先级 |
+| --------- | --------------------------------------------------- | ------ |
+| Skill列表 | 展示所有Skill（内置+自定义），支持筛选              | P0     |
+| 新建Skill | 从零创建自定义Skill                                 | P0     |
+| 编辑Skill | 编辑模板内容（CodeMirror Markdown编辑器，语法高亮） | P0     |
+| 删除Skill | 自定义可删，内置不可删                              | P0     |
+| 执行日志  | 查看 `skill_execution_logs`，按Skill分组            | P1     |
+| 使用统计  | 调用次数/成功率/Token消耗                           | P1     |
+| 迭代建议  | 基于执行日志自动生成优化建议                        | P1     |
+| 导入/导出 | JSON格式导入导出Skill模板                           | P2     |
 
 #### luban-skill 模型格式
 
@@ -396,19 +405,23 @@ Skill模板遵循以下结构：
 # {skill_name}
 
 ## 输入参数
+
 - title: 需求标题 (必填)
 - description: 需求描述 (必填)
 - context: 上下文信息 (选填)
 
 ## 输出格式
+
 - format: markdown
 - sections: [背景, 方案, 验收标准, 风险]
 
 ## 约束条件
+
 - max_tokens: 4000
 - temperature: 0.7
 
 ## Prompt模板
+
 （用户自定义的Prompt内容）
 ```
 
@@ -416,12 +429,12 @@ Skill模板遵循以下结构：
 
 基于执行日志自动分析，生成优化建议：
 
-| 规则 | 条件 | 建议内容 |
-|------|------|---------|
-| 成功率低 | 成功率 < 80%（且执行次数 ≥ 5） | "该Skill成功率偏低，建议检查模板Prompt" |
-| Token消耗高 | 平均Token > 5000 | "Token消耗较高，建议精简Prompt内容" |
-| 长期未使用 | 最近30天无执行记录 | "该Skill超过30天未使用，建议归档" |
-| 执行缓慢 | 平均执行时间 > 60秒 | "执行时间较长，建议优化模板复杂度" |
+| 规则        | 条件                           | 建议内容                                |
+| ----------- | ------------------------------ | --------------------------------------- |
+| 成功率低    | 成功率 < 80%（且执行次数 ≥ 5） | "该Skill成功率偏低，建议检查模板Prompt" |
+| Token消耗高 | 平均Token > 5000               | "Token消耗较高，建议精简Prompt内容"     |
+| 长期未使用  | 最近30天无执行记录             | "该Skill超过30天未使用，建议归档"       |
+| 执行缓慢    | 平均执行时间 > 60秒            | "执行时间较长，建议优化模板复杂度"      |
 
 建议展示位置：Skill管理页每个Skill卡片下方，带图标提示
 
@@ -447,20 +460,21 @@ Then Skill模板完整恢复
 ### 需求7：仪表盘→工作台
 
 #### 目标
+
 首页从统计概览改为可操作的工作台。
 
 #### 工作台模块
 
-| 模块 | 内容 | 优先级 | 数据源 |
-|------|------|--------|--------|
-| 我的待办 | 分配给我的需求+任务 | P0 | tasks WHERE assignee=me |
-| 快速操作 | 新建需求/新建任务/创建会话 | P0 | 无 |
-| 进行中 | 正在执行的任务+会话状态 | P0 | tasks + agent_sessions |
-| 系统资源 | 内存/会话数/任务数（状态栏数据） | P0 | get_system_info |
-| 最近活动 | 操作时间线 | P1 | requirement_history + task变更 |
-| 项目概览 | 各项目进度条 | P1 | projects + task stats |
-| Token趋势 | 近7天消耗曲线 | P2 | token_usage |
-| Agent状态 | 各Agent当前任务数 | P2 | agents + sessions |
+| 模块      | 内容                             | 优先级 | 数据源                         |
+| --------- | -------------------------------- | ------ | ------------------------------ |
+| 我的待办  | 分配给我的需求+任务              | P0     | tasks WHERE assignee=me        |
+| 快速操作  | 新建需求/新建任务/创建会话       | P0     | 无                             |
+| 进行中    | 正在执行的任务+会话状态          | P0     | tasks + agent_sessions         |
+| 系统资源  | 内存/会话数/任务数（状态栏数据） | P0     | get_system_info                |
+| 最近活动  | 操作时间线                       | P1     | requirement_history + task变更 |
+| 项目概览  | 各项目进度条                     | P1     | projects + task stats          |
+| Token趋势 | 近7天消耗曲线                    | P2     | token_usage                    |
+| Agent状态 | 各Agent当前任务数                | P2     | agents + sessions              |
 
 #### 验收标准
 
@@ -484,19 +498,20 @@ And 创建成功后自动刷新待办列表
 ### 需求8：系统资源监控
 
 #### 目标
+
 应用级资源监控 + 状态栏实时展示。
 
 #### 采集指标
 
-| 指标 | 采集方式 | 频率 | 存储 |
-|------|---------|------|------|
-| 应用内存 (RSS) | sysinfo crate | 2秒 | 不存储（实时） |
-| 应用CPU% | sysinfo crate | 2秒 | 不存储 |
-| 应用启动时间 | std::time::Instant | 启动时 | 内存 |
-| 活跃会话数 | DB查询 | 2秒 | 不存储 |
-| 待处理任务数 | DB查询 | 5秒 | 不存储 |
-| 会话峰值内存 | sysinfo 追踪子进程 | 按需 | agent_sessions 表 |
-| 会话平均CPU | sysinfo 追踪子进程 | 按需 | agent_sessions 表 |
+| 指标           | 采集方式           | 频率   | 存储              |
+| -------------- | ------------------ | ------ | ----------------- |
+| 应用内存 (RSS) | sysinfo crate      | 2秒    | 不存储（实时）    |
+| 应用CPU%       | sysinfo crate      | 2秒    | 不存储            |
+| 应用启动时间   | std::time::Instant | 启动时 | 内存              |
+| 活跃会话数     | DB查询             | 2秒    | 不存储            |
+| 待处理任务数   | DB查询             | 5秒    | 不存储            |
+| 会话峰值内存   | sysinfo 追踪子进程 | 按需   | agent_sessions 表 |
+| 会话平均CPU    | sysinfo 追踪子进程 | 按需   | agent_sessions 表 |
 
 #### 状态栏设计
 
@@ -507,22 +522,23 @@ And 创建成功后自动刷新待办列表
      左侧               右侧（从左到右）
 ```
 
-| 元素 | 含义 | 交互 |
-|------|------|------|
-| `📊 215MB` | 应用内存占用 | 悬停tooltip：CPU%、启动时间、运行时长 |
-| `>_ 2` | 活跃会话数 | 悬停tooltip：各会话名称+状态；点击跳转Sessions |
-| `⚙ 3` | 待处理任务数 | 悬停tooltip：任务列表；点击跳转Board |
-| `v2.0.0` | 版本号 | 静态 |
+| 元素       | 含义         | 交互                                           |
+| ---------- | ------------ | ---------------------------------------------- |
+| `📊 215MB` | 应用内存占用 | 悬停tooltip：CPU%、启动时间、运行时长          |
+| `>_ 2`     | 活跃会话数   | 悬停tooltip：各会话名称+状态；点击跳转Sessions |
+| `⚙ 3`      | 待处理任务数 | 悬停tooltip：任务列表；点击跳转Board           |
+| `v2.0.0`   | 版本号       | 静态                                           |
 
 #### 资源告警（MVP实现）
 
-| 告警条件 | 展示方式 | 交互 |
-|---------|---------|------|
-| 内存 > 1GB | 状态栏内存数字变红 | 悬停tooltip增加"内存占用过高"提示 |
-| 会话数 ≥ 3 | 状态栏会话数变红 | 悬停tooltip提示"会话已满，需关闭后才能新建" |
-| 待处理任务 > 20 | 任务数数字变橙 | 悬停tooltip提示"任务积压过多" |
+| 告警条件        | 展示方式           | 交互                                        |
+| --------------- | ------------------ | ------------------------------------------- |
+| 内存 > 1GB      | 状态栏内存数字变红 | 悬停tooltip增加"内存占用过高"提示           |
+| 会话数 ≥ 3      | 状态栏会话数变红   | 悬停tooltip提示"会话已满，需关闭后才能新建" |
+| 待处理任务 > 20 | 任务数数字变橙     | 悬停tooltip提示"任务积压过多"               |
 
 告警阈值存储在 settings 表，支持后续用户自定义：
+
 ```
 alert_memory_threshold = 1024    (MB)
 alert_session_threshold = 3
@@ -551,17 +567,18 @@ Then 显示tooltip：CPU 5.2%、启动于 10:30、已运行 23分钟
 ### 需求9：系统托盘图标
 
 #### 目标
+
 应用最小化到系统托盘，右键菜单提供快捷操作和退出功能。
 
 #### 现状
 
-| 维度 | 状态 |
-|------|------|
-| Cargo.toml | ✅ `tray-icon` feature 已启用 |
-| main.rs | ❌ 无 TrayIcon 创建代码 |
-| tauri.conf.json | ❌ 无 tray 权限配置 |
-| capabilities | ❌ 无 capabilities 目录 |
-| 图标资源 | ✅ icon.ico 已生成（32x32 适配托盘） |
+| 维度            | 状态                                 |
+| --------------- | ------------------------------------ |
+| Cargo.toml      | ✅ `tray-icon` feature 已启用        |
+| main.rs         | ❌ 无 TrayIcon 创建代码              |
+| tauri.conf.json | ❌ 无 tray 权限配置                  |
+| capabilities    | ❌ 无 capabilities 目录              |
+| 图标资源        | ✅ icon.ico 已生成（32x32 适配托盘） |
 
 #### 功能设计
 
@@ -588,26 +605,26 @@ Then 显示tooltip：CPU 5.2%、启动于 10:30、已运行 23分钟
 
 **菜单项详情：**
 
-| 菜单项 | 类型 | 动作 | 优先级 |
-|--------|------|------|--------|
-| AI研发协作平台 v2.0 | 标题（灰） | 无 | P0 |
-| 显示主窗口 | 可点击 | `window.show()` + `window.set_focus()` | P0 |
-| 最小化到托盘 | 可点击 | `window.hide()` | P0 |
-| 状态/资源信息 | 禁用文字 | 显示运行状态+内存 | P1 |
-| 新建需求 | 可点击 | 发送事件 → 前端路由到 `/requirements` 新建弹窗 | P1 |
-| 新建任务 | 可点击 | 发送事件 → 前端路由到 `/board` 新建弹窗 | P1 |
-| 设置 | 可点击 | 发送事件 → 前端路由到 `/settings` | P1 |
-| 退出 | 可点击 | `process::exit(0)` 或 `app.exit(0)` | P0 |
+| 菜单项              | 类型       | 动作                                           | 优先级 |
+| ------------------- | ---------- | ---------------------------------------------- | ------ |
+| AI研发协作平台 v2.0 | 标题（灰） | 无                                             | P0     |
+| 显示主窗口          | 可点击     | `window.show()` + `window.set_focus()`         | P0     |
+| 最小化到托盘        | 可点击     | `window.hide()`                                | P0     |
+| 状态/资源信息       | 禁用文字   | 显示运行状态+内存                              | P1     |
+| 新建需求            | 可点击     | 发送事件 → 前端路由到 `/requirements` 新建弹窗 | P1     |
+| 新建任务            | 可点击     | 发送事件 → 前端路由到 `/board` 新建弹窗        | P1     |
+| 设置                | 可点击     | 发送事件 → 前端路由到 `/settings`              | P1     |
+| 退出                | 可点击     | `process::exit(0)` 或 `app.exit(0)`            | P0     |
 
 #### 窗口行为变更
 
-| 行为 | 当前 | 改为 |
-|------|------|------|
-| 点击窗口关闭按钮 | 退出应用 | 隐藏到系统托盘 |
-| 点击任务栏图标 | 显示/隐藏切换 | 同左（不变） |
-| 托盘右键"显示主窗口" | — | 显示并聚焦窗口 |
-| 托盘右键"退出" | — | 真正退出应用 |
-| 应用启动时 | 直接显示窗口 | 显示窗口 + 创建托盘图标 |
+| 行为                 | 当前          | 改为                    |
+| -------------------- | ------------- | ----------------------- |
+| 点击窗口关闭按钮     | 退出应用      | 隐藏到系统托盘          |
+| 点击任务栏图标       | 显示/隐藏切换 | 同左（不变）            |
+| 托盘右键"显示主窗口" | —             | 显示并聚焦窗口          |
+| 托盘右键"退出"       | —             | 真正退出应用            |
+| 应用启动时           | 直接显示窗口  | 显示窗口 + 创建托盘图标 |
 
 #### 技术实现
 
@@ -619,12 +636,7 @@ Then 显示tooltip：CPU 5.2%、启动于 10:30、已运行 23分钟
   "identifier": "default",
   "description": "Default capabilities",
   "windows": ["main"],
-  "permissions": [
-    "core:default",
-    "core:tray:default",
-    "core:window:default",
-    "core:event:default"
-  ]
+  "permissions": ["core:default", "core:tray:default", "core:window:default", "core:event:default"]
 }
 ```
 
@@ -758,14 +770,22 @@ import { listen } from "@tauri-apps/api/event";
 import { useNavigate } from "react-router-dom";
 
 useEffect(() => {
-    const unlisten = listen("tray-action", (event) => {
-        switch (event.payload) {
-            case "new_requirement": navigate("/requirements"); break;
-            case "new_task": navigate("/board"); break;
-            case "settings": navigate("/settings"); break;
-        }
-    });
-    return () => { unlisten.then(fn => fn()); };
+  const unlisten = listen("tray-action", (event) => {
+    switch (event.payload) {
+      case "new_requirement":
+        navigate("/requirements");
+        break;
+      case "new_task":
+        navigate("/board");
+        break;
+      case "settings":
+        navigate("/settings");
+        break;
+    }
+  });
+  return () => {
+    unlisten.then((fn) => fn());
+  };
 }, [navigate]);
 ```
 
@@ -814,11 +834,11 @@ And 资源区域显示当前内存
 
 #### 异常流程
 
-| 异常 | 处理 |
-|------|------|
-| 系统不支持托盘（极少见） | 降级为普通窗口模式，关闭按钮直接退出 |
-| 托盘图标不显示 | 检查 icon.ico 尺寸（需32x32），日志记录错误 |
-| 多次点击退出 | 进程直接终止，无确认弹窗 |
+| 异常                     | 处理                                        |
+| ------------------------ | ------------------------------------------- |
+| 系统不支持托盘（极少见） | 降级为普通窗口模式，关闭按钮直接退出        |
+| 托盘图标不显示           | 检查 icon.ico 尺寸（需32x32），日志记录错误 |
+| 多次点击退出             | 进程直接终止，无确认弹窗                    |
 
 ---
 
@@ -961,6 +981,7 @@ impl serde::Serialize for AppError {
 ```
 
 前端可按前缀判断错误类型：
+
 ```typescript
 catch (e) {
   if (e.startsWith("NOT_FOUND:")) { /* 资源不存在 */ }
@@ -1016,6 +1037,7 @@ fn now_iso8601() -> String {
 ```
 
 迁移时批量转换旧格式：
+
 ```sql
 -- 将 "YYYY-MM-DD HH:MM:SS" 转为 ISO 8601
 UPDATE requirements SET created_at = created_at || 'Z'
@@ -1076,10 +1098,11 @@ tokio::spawn(async move {
 ```
 
 前端 AgentTerminal 监听：
+
 ```typescript
 import { listen } from "@tauri-apps/api/event";
 const unlisten = await listen("pty-output", (event) => {
-    // 处理 PTY 输出
+  // 处理 PTY 输出
 });
 ```
 
@@ -1089,15 +1112,15 @@ const unlisten = await listen("pty-output", (event) => {
 
 当前需迁移的7个页面：
 
-| 页面 | 当前方式 | 迁移到 |
-|------|---------|--------|
-| Cost | 直接调 tauri.ts | 新增 useCostStore |
-| Statistics | 直接调 tauri.ts | 新增 useStatisticsStore |
-| Commits | 直接调 tauri.ts | 新增 useCommitsStore |
-| Agents | 直接调 tauri.ts | 新增 useAgentsStore |
+| 页面              | 当前方式        | 迁移到                    |
+| ----------------- | --------------- | ------------------------- |
+| Cost              | 直接调 tauri.ts | 新增 useCostStore         |
+| Statistics        | 直接调 tauri.ts | 新增 useStatisticsStore   |
+| Commits           | 直接调 tauri.ts | 新增 useCommitsStore      |
+| Agents            | 直接调 tauri.ts | 新增 useAgentsStore       |
 | RequirementDetail | 直接调 tauri.ts | 复用 useRequirementsStore |
-| SessionDetail | 直接调 tauri.ts | 复用 useSessionsStore |
-| ProjectDetail | 直接调 tauri.ts | 复用 useProjectsStore |
+| SessionDetail     | 直接调 tauri.ts | 复用 useSessionsStore     |
+| ProjectDetail     | 直接调 tauri.ts | 复用 useProjectsStore     |
 
 ### 3.9 会话输出持久化方案（解决 C2）
 
@@ -1153,20 +1176,20 @@ fn auto_backup(db_path: &Path) {
 
 ```typescript
 useEffect(() => {
-    let cancelled = false;
+  let cancelled = false;
 
-    async function load() {
-        const data = await fetchXxx();
-        if (!cancelled) setData(data);
-    }
+  async function load() {
+    const data = await fetchXxx();
+    if (!cancelled) setData(data);
+  }
 
-    load();
-    const timer = setInterval(load, interval);
+  load();
+  const timer = setInterval(load, interval);
 
-    return () => {
-        cancelled = true;
-        clearInterval(timer);
-    };
+  return () => {
+    cancelled = true;
+    clearInterval(timer);
+  };
 }, []);
 ```
 
@@ -1177,20 +1200,23 @@ useEffect(() => {
 let pollTimer: number | null = null;
 
 export const useSystemMonitorStore = create((set) => ({
-    memory: 0,
-    sessions: 0,
-    tasks: 0,
-    startPolling: () => {
-        if (pollTimer) return;
-        pollTimer = window.setInterval(async () => {
-            if (document.hidden) return; // 页面不可见时暂停
-            const info = await getSystemInfo();
-            set({ memory: info.memory_mb, sessions: info.session_count, tasks: info.pending_tasks });
-        }, 2000);
-    },
-    stopPolling: () => {
-        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-    },
+  memory: 0,
+  sessions: 0,
+  tasks: 0,
+  startPolling: () => {
+    if (pollTimer) return;
+    pollTimer = window.setInterval(async () => {
+      if (document.hidden) return; // 页面不可见时暂停
+      const info = await getSystemInfo();
+      set({ memory: info.memory_mb, sessions: info.session_count, tasks: info.pending_tasks });
+    }, 2000);
+  },
+  stopPolling: () => {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  },
 }));
 ```
 
@@ -1223,14 +1249,18 @@ fn validate_task(title: &str, task_type: &str, priority: &str) -> Result<(), App
 ```
 
 前端防重复提交：
+
 ```typescript
 const [submitting, setSubmitting] = useState(false);
 
 async function handleCreate() {
-    if (submitting) return;
-    setSubmitting(true);
-    try { await createXxx(); }
-    finally { setSubmitting(false); }
+  if (submitting) return;
+  setSubmitting(true);
+  try {
+    await createXxx();
+  } finally {
+    setSubmitting(false);
+  }
 }
 ```
 
@@ -1238,18 +1268,18 @@ async function handleCreate() {
 
 #### 死代码清理
 
-| 项目 | 处理 |
-|------|------|
-| AppState.llm_client | 删除字段，PrdService自行创建client |
-| requirement_history表 | 需求状态变更时写入，详情页展示 |
-| Requirements.tsx FileText | 替换为lucide-react导入 |
+| 项目                      | 处理                               |
+| ------------------------- | ---------------------------------- |
+| AppState.llm_client       | 删除字段，PrdService自行创建client |
+| requirement_history表     | 需求状态变更时写入，详情页展示     |
+| Requirements.tsx FileText | 替换为lucide-react导入             |
 
 #### 新增前端依赖
 
-| 依赖 | 版本 | 用途 | 所属需求 |
-|------|------|------|---------|
-| `@tiptap/react` + `@tiptap/starter-kit` | ^2.x | 富文本编辑器（需求描述/验收标准） | 需求1 |
-| `@uiw/react-codemirror` + `@uiw/codemirror-theme-github` | ^4.x | Markdown编辑器（Skill模板编辑） | 需求6 |
+| 依赖                                                     | 版本 | 用途                              | 所属需求 |
+| -------------------------------------------------------- | ---- | --------------------------------- | -------- |
+| `@tiptap/react` + `@tiptap/starter-kit`                  | ^2.x | 富文本编辑器（需求描述/验收标准） | 需求1    |
+| `@uiw/react-codemirror` + `@uiw/codemirror-theme-github` | ^4.x | Markdown编辑器（Skill模板编辑）   | 需求6    |
 
 #### API Key AES加密
 
@@ -1310,18 +1340,18 @@ CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
 
 **目标：** 解决所有CRITICAL和HIGH级技术债务
 
-| 天数 | 任务 | 解决问题 |
-|------|------|---------|
-| 1 | DB迁移系统重构（migration.rs + schema_version） | T4/T5 |
-| 1 | 时间戳统一 + 删除保护策略 + 索引补充 | T21/T22/T8/T20 |
-| 0.5 | AgentSession结构体同步 + output_log字段 | T23/需求4 |
-| 1 | PTY事件通道修复 + 备份策略 | T24/备份 |
-| 0.5 | AppError枚举定义 + Input校验框架 | T3/T11/T12 |
-| 1 | API Key AES加密（新增aes-gcm依赖） | T14 |
-| 1 | 系统托盘图标（tray.rs + capabilities + 窗口关闭拦截） | 需求9 |
-| 0.5 | 死代码清理（llm_client等） | T25/T31 |
-| 0.5 | 新增前端依赖（TipTap + CodeMirror）+ 编译验证 | 需求1/6 |
-| 0.5 | 编译验证 + 回归测试 | — |
+| 天数 | 任务                                                  | 解决问题       |
+| ---- | ----------------------------------------------------- | -------------- |
+| 1    | DB迁移系统重构（migration.rs + schema_version）       | T4/T5          |
+| 1    | 时间戳统一 + 删除保护策略 + 索引补充                  | T21/T22/T8/T20 |
+| 0.5  | AgentSession结构体同步 + output_log字段               | T23/需求4      |
+| 1    | PTY事件通道修复 + 备份策略                            | T24/备份       |
+| 0.5  | AppError枚举定义 + Input校验框架                      | T3/T11/T12     |
+| 1    | API Key AES加密（新增aes-gcm依赖）                    | T14            |
+| 1    | 系统托盘图标（tray.rs + capabilities + 窗口关闭拦截） | 需求9          |
+| 0.5  | 死代码清理（llm_client等）                            | T25/T31        |
+| 0.5  | 新增前端依赖（TipTap + CodeMirror）+ 编译验证         | 需求1/6        |
+| 0.5  | 编译验证 + 回归测试                                   | —              |
 
 **交付物：** 健壮的基础设施 + 系统托盘，可支撑后续所有功能开发
 
@@ -1329,16 +1359,16 @@ CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
 
 **目标：** TAPD级字段 + 详情页 + 富文本 + 评论
 
-| 天数 | 任务 |
-|------|------|
-| 1 | DB迁移：requirements/tasks/agent_sessions 新增字段 + task_comments表 |
-| 1 | 后端：扩展 create/update 命令 + 分页 + 评论CRUD + 删除保护校验 |
-| 1 | 前端：RequirementForm（含TipTap富文本编辑器 + 附件路径选择） |
-| 1 | 前端：RequirementDetail 重构（关联任务+操作历史+富文本展示） |
-| 1 | 前端：TaskForm 组件 + TaskDetail 新增（含评论区） |
-| 1 | 前端：Board 看板增强（卡片+筛选+新列blocked） |
-| 0.5 | Store迁移：统一数据层（T27） |
-| 0.5 | 需求状态流转校验 + requirement_history写入 |
+| 天数 | 任务                                                                 |
+| ---- | -------------------------------------------------------------------- |
+| 1    | DB迁移：requirements/tasks/agent_sessions 新增字段 + task_comments表 |
+| 1    | 后端：扩展 create/update 命令 + 分页 + 评论CRUD + 删除保护校验       |
+| 1    | 前端：RequirementForm（含TipTap富文本编辑器 + 附件路径选择）         |
+| 1    | 前端：RequirementDetail 重构（关联任务+操作历史+富文本展示）         |
+| 1    | 前端：TaskForm 组件 + TaskDetail 新增（含评论区）                    |
+| 1    | 前端：Board 看板增强（卡片+筛选+新列blocked）                        |
+| 0.5  | Store迁移：统一数据层（T27）                                         |
+| 0.5  | 需求状态流转校验 + requirement_history写入                           |
 
 **交付物：** 完整的需求/任务管理功能（含富文本+评论）
 
@@ -1346,13 +1376,13 @@ CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
 
 **目标：** 项目→需求→任务全链路打通
 
-| 天数 | 任务 |
-|------|------|
-| 1 | ProjectDetail 增加需求/任务 Tab |
-| 0.5 | 全局 ProjectSelector 组件 |
-| 1 | 后端：list_by_project 查询命令 |
-| 0.5 | Board 按项目筛选 |
-| 0.5 | 需求→任务创建联动 |
+| 天数 | 任务                            |
+| ---- | ------------------------------- |
+| 1    | ProjectDetail 增加需求/任务 Tab |
+| 0.5  | 全局 ProjectSelector 组件       |
+| 1    | 后端：list_by_project 查询命令  |
+| 0.5  | Board 按项目筛选                |
+| 0.5  | 需求→任务创建联动               |
 
 **交付物：** 三级数据完全联动
 
@@ -1360,13 +1390,13 @@ CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
 
 **目标：** 自动/手动模式 + 输出持久化
 
-| 天数 | 任务 |
-|------|------|
-| 0.5 | Settings 增加 session_mode 开关 |
-| 1 | AgentService：自动模式（任务状态变更→创建会话） |
-| 0.5 | TaskDetail：手动模式（"开启会话"按钮） |
-| 1 | 会话输出持久化（日志文件+回放） |
-| 0.5 | TaskDetail 内嵌终端 + 会话资源面板 |
+| 天数 | 任务                                            |
+| ---- | ----------------------------------------------- |
+| 0.5  | Settings 增加 session_mode 开关                 |
+| 1    | AgentService：自动模式（任务状态变更→创建会话） |
+| 0.5  | TaskDetail：手动模式（"开启会话"按钮）          |
+| 1    | 会话输出持久化（日志文件+回放）                 |
+| 0.5  | TaskDetail 内嵌终端 + 会话资源面板              |
 
 **交付物：** 完整的双模式会话系统
 
@@ -1374,15 +1404,15 @@ CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
 
 **目标：** 独立管理页 + 替换 + 日志 + 迭代建议
 
-| 天数 | 任务 |
-|------|------|
-| 0.5 | DB迁移：Skill版本字段 (migrations/005) |
-| 1 | SkillManagement 页面（CRUD + CodeMirror模板编辑器） |
-| 0.5 | Skill替换功能（创建自定义版本） |
-| 0.5 | SkillLogs 页面（执行日志+使用统计） |
-| 1 | 迭代建议引擎（成功率/Token/未使用/耗时规则） |
-| 0.5 | 导入/导出功能 |
-| 0.5 | 导航菜单 + 路由更新 |
+| 天数 | 任务                                                |
+| ---- | --------------------------------------------------- |
+| 0.5  | DB迁移：Skill版本字段 (migrations/005)              |
+| 1    | SkillManagement 页面（CRUD + CodeMirror模板编辑器） |
+| 0.5  | Skill替换功能（创建自定义版本）                     |
+| 0.5  | SkillLogs 页面（执行日志+使用统计）                 |
+| 1    | 迭代建议引擎（成功率/Token/未使用/耗时规则）        |
+| 0.5  | 导入/导出功能                                       |
+| 0.5  | 导航菜单 + 路由更新                                 |
 
 **交付物：** 完整的Skill生命周期管理（含智能建议）
 
@@ -1390,15 +1420,15 @@ CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
 
 **目标：** Dashboard→Workspace + 资源监控 + 告警
 
-| 天数 | 任务 |
-|------|------|
-| 1 | Workspace 页面（我的待办+快速操作+进行中+系统资源） |
-| 0.5 | system_monitor.rs + sysinfo集成 |
-| 0.5 | 状态栏重构 + 全局轮询单例 |
-| 0.5 | 资源告警逻辑（内存/会话数/任务积压 + 阈值可配置） |
-| 0.5 | Toast通知系统 |
-| 0.5 | useEffect cleanup 全量修复 |
-| 0.5 | Commits/Sessions 样式统一 |
+| 天数 | 任务                                                |
+| ---- | --------------------------------------------------- |
+| 1    | Workspace 页面（我的待办+快速操作+进行中+系统资源） |
+| 0.5  | system_monitor.rs + sysinfo集成                     |
+| 0.5  | 状态栏重构 + 全局轮询单例                           |
+| 0.5  | 资源告警逻辑（内存/会话数/任务积压 + 阈值可配置）   |
+| 0.5  | Toast通知系统                                       |
+| 0.5  | useEffect cleanup 全量修复                          |
+| 0.5  | Commits/Sessions 样式统一                           |
 
 **交付物：** 完整的工作台 + 系统监控 + 资源告警
 
@@ -1419,41 +1449,41 @@ Phase 5  工作台+监控    ░░░░░░░░░░░░░░░░░
 
 ## 五、问题追踪对照表
 
-| 原编号 | 严重程度 | 问题 | 解决方案 | 解决阶段 |
-|--------|---------|------|---------|---------|
-| T1 | HIGH | commands绕过Service | Phase 1统一迁移 | P1 |
-| T2 | MEDIUM | Database职责过重 | 迁移逻辑抽取到migration.rs | P0 |
-| T3 | MEDIUM | 无统一错误处理 | AppError枚举 | P0 |
-| T4 | CRITICAL | 迁移无事务保护 | 版本化迁移系统 | P0 |
-| T5 | HIGH | migrate_tables膨胀 | 迁移文件拆分 | P0 |
-| T6 | MEDIUM | UUID v4无序 | MVP保持，后续可换ULID | — |
-| T7 | MEDIUM | create_project返回类型 | 修复返回类型 | P0 |
-| T8 | MEDIUM | tasks缺project_id索引 | 补充索引 | P0 |
-| T9 | LOW | 时间戳TEXT类型 | MVP可接受 | — |
-| T10 | HIGH | list无分页 | 统一分页系统 | P0 |
-| T11 | HIGH | 无typed error | AppError枚举 | P0 |
-| T12 | MEDIUM | 无输入校验 | validate函数 | P0 |
-| T13 | MEDIUM | 无幂等设计 | 前端防重复+后端校验 | P1 |
-| T14 | HIGH | API Key明文 | AES-256-GCM加密存储 | P0 |
-| T15 | MEDIUM | project_path无校验 | 增加路径校验 | P1 |
-| T16 | LOW | 审计日志未使用 | 需求状态变更时写入 | P1 |
-| T17 | HIGH | useEffect未cleanup | 全量修复 | P5 |
-| T18 | MEDIUM | 轮询多实例 | 全局单例 | P5 |
-| T19 | MEDIUM | 全量查询+前端过滤 | 后端分页 | P0 |
-| T20 | LOW | 无busy_timeout | 添加PRAGMA | P0 |
-| T21 | HIGH | 时间戳格式不一致 | 统一ISO 8601 | P0 |
-| T22 | HIGH | 无CASCADE | 重建表+应用层保护 | P0 |
-| T23 | MEDIUM | AgentSession字段缺失 | 同步结构体 | P0 |
-| T24 | HIGH | PTY事件通道断裂 | Tauri event转发 | P0 |
-| T25 | MEDIUM | llm_client死代码 | 删除 | P0 |
-| T26 | MEDIUM | without_db()风险 | 移除，改用trait | P1 |
-| T27 | HIGH | 7页面绕过Store | 统一Store | P1 |
-| T28 | MEDIUM | error未渲染 | Toast系统 | P5 |
-| T29 | MEDIUM | 样式不一致 | 统一组件类 | P5 |
-| T30 | MEDIUM | JSON.parse未保护 | 加try-catch | P1 |
-| T31 | LOW | 本地FileText | lucide导入 | P0 |
-| C1 | HIGH | 需求1缺附件/富文本 | TipTap编辑器 + 文件路径引用 | P0/P1 |
-| C2 | HIGH | 会话输出未定义 | 文件系统+日志方案 | P3 |
-| C3 | HIGH | luban-skill模型未定义 | Markdown模板格式 | P4 |
-| C4 | MEDIUM | 资源告警未定义 | 内存/会话/任务积压告警 + 可配置阈值 | P5 |
-| D1 | LOW | CPU监控价值有限 | 保留，成本低 | — |
+| 原编号 | 严重程度 | 问题                   | 解决方案                            | 解决阶段 |
+| ------ | -------- | ---------------------- | ----------------------------------- | -------- |
+| T1     | HIGH     | commands绕过Service    | Phase 1统一迁移                     | P1       |
+| T2     | MEDIUM   | Database职责过重       | 迁移逻辑抽取到migration.rs          | P0       |
+| T3     | MEDIUM   | 无统一错误处理         | AppError枚举                        | P0       |
+| T4     | CRITICAL | 迁移无事务保护         | 版本化迁移系统                      | P0       |
+| T5     | HIGH     | migrate_tables膨胀     | 迁移文件拆分                        | P0       |
+| T6     | MEDIUM   | UUID v4无序            | MVP保持，后续可换ULID               | —        |
+| T7     | MEDIUM   | create_project返回类型 | 修复返回类型                        | P0       |
+| T8     | MEDIUM   | tasks缺project_id索引  | 补充索引                            | P0       |
+| T9     | LOW      | 时间戳TEXT类型         | MVP可接受                           | —        |
+| T10    | HIGH     | list无分页             | 统一分页系统                        | P0       |
+| T11    | HIGH     | 无typed error          | AppError枚举                        | P0       |
+| T12    | MEDIUM   | 无输入校验             | validate函数                        | P0       |
+| T13    | MEDIUM   | 无幂等设计             | 前端防重复+后端校验                 | P1       |
+| T14    | HIGH     | API Key明文            | AES-256-GCM加密存储                 | P0       |
+| T15    | MEDIUM   | project_path无校验     | 增加路径校验                        | P1       |
+| T16    | LOW      | 审计日志未使用         | 需求状态变更时写入                  | P1       |
+| T17    | HIGH     | useEffect未cleanup     | 全量修复                            | P5       |
+| T18    | MEDIUM   | 轮询多实例             | 全局单例                            | P5       |
+| T19    | MEDIUM   | 全量查询+前端过滤      | 后端分页                            | P0       |
+| T20    | LOW      | 无busy_timeout         | 添加PRAGMA                          | P0       |
+| T21    | HIGH     | 时间戳格式不一致       | 统一ISO 8601                        | P0       |
+| T22    | HIGH     | 无CASCADE              | 重建表+应用层保护                   | P0       |
+| T23    | MEDIUM   | AgentSession字段缺失   | 同步结构体                          | P0       |
+| T24    | HIGH     | PTY事件通道断裂        | Tauri event转发                     | P0       |
+| T25    | MEDIUM   | llm_client死代码       | 删除                                | P0       |
+| T26    | MEDIUM   | without_db()风险       | 移除，改用trait                     | P1       |
+| T27    | HIGH     | 7页面绕过Store         | 统一Store                           | P1       |
+| T28    | MEDIUM   | error未渲染            | Toast系统                           | P5       |
+| T29    | MEDIUM   | 样式不一致             | 统一组件类                          | P5       |
+| T30    | MEDIUM   | JSON.parse未保护       | 加try-catch                         | P1       |
+| T31    | LOW      | 本地FileText           | lucide导入                          | P0       |
+| C1     | HIGH     | 需求1缺附件/富文本     | TipTap编辑器 + 文件路径引用         | P0/P1    |
+| C2     | HIGH     | 会话输出未定义         | 文件系统+日志方案                   | P3       |
+| C3     | HIGH     | luban-skill模型未定义  | Markdown模板格式                    | P4       |
+| C4     | MEDIUM   | 资源告警未定义         | 内存/会话/任务积压告警 + 可配置阈值 | P5       |
+| D1     | LOW      | CPU监控价值有限        | 保留，成本低                        | —        |

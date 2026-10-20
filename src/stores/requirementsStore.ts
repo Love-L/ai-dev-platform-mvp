@@ -1,6 +1,6 @@
-import { create } from 'zustand';
-import { listRequirements, createRequirement, deleteRequirement } from '../lib/tauri';
-import type { Requirement } from '../lib/types';
+import { create } from "zustand";
+import { listRequirements, createRequirement, deleteRequirement } from "../lib/tauri";
+import type { Requirement } from "../lib/types";
 
 interface RequirementsState {
   requirements: Requirement[];

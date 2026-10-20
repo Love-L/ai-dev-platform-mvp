@@ -71,7 +71,7 @@ export default function Board() {
         data.blocked_reason,
         data.tags,
         data.notes,
-        data.description
+        data.description,
       );
       setShowCreateModal(false);
       await fetchTasks();
@@ -113,8 +113,12 @@ export default function Board() {
       {/* 页面标题 */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>任务看板</h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>共 {tasks.length} 个任务</p>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>
+            任务看板
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+            共 {tasks.length} 个任务
+          </p>
         </div>
         <button onClick={() => setShowCreateModal(true)} className="btn-primary">
           <Plus className="w-4 h-4" />
@@ -125,7 +129,10 @@ export default function Board() {
       {/* 筛选栏 */}
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="flex-1 relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-text-tertiary)" }} />
+          <Search
+            className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
+            style={{ color: "var(--color-text-tertiary)" }}
+          />
           <input
             type="text"
             placeholder="搜索任务..."
@@ -134,14 +141,12 @@ export default function Board() {
             className="input pl-9"
           />
         </div>
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="select w-full sm:w-32"
-        >
+        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="select w-full sm:w-32">
           <option value="">全部类型</option>
           {TASK_TYPES.map((t) => (
-            <option key={t.id} value={t.id}>{t.label}</option>
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
           ))}
         </select>
       </div>
@@ -163,7 +168,9 @@ export default function Board() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${col.dotColor}`} />
-                    <h3 className="text-xs font-semibold" style={{ color: "var(--color-text-secondary)" }}>{col.label}</h3>
+                    <h3 className="text-xs font-semibold" style={{ color: "var(--color-text-secondary)" }}>
+                      {col.label}
+                    </h3>
                   </div>
                   <span
                     className="text-[10px] font-mono px-1.5 py-0.5 rounded"
@@ -210,8 +217,14 @@ export default function Board() {
                           onClick={() => handleDelete(task.id)}
                           className="p-1 rounded opacity-0 group-hover:opacity-100 flex-shrink-0"
                           style={{ color: "var(--color-text-tertiary)", transition: "all var(--transition-fast)" }}
-                          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-danger)"; e.currentTarget.style.background = "var(--color-danger-light)"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.color = ""; e.currentTarget.style.background = ""; }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = "var(--color-danger)";
+                            e.currentTarget.style.background = "var(--color-danger-light)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = "";
+                            e.currentTarget.style.background = "";
+                          }}
                           aria-label="删除任务"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -222,7 +235,9 @@ export default function Board() {
                         <PriorityBadge priority={task.priority} />
                       </div>
                       {task.agent_type && (
-                        <p className="text-xs mt-2" style={{ color: "var(--color-text-tertiary)" }}>{task.agent_type}</p>
+                        <p className="text-xs mt-2" style={{ color: "var(--color-text-tertiary)" }}>
+                          {task.agent_type}
+                        </p>
                       )}
                     </div>
                   ))
@@ -234,12 +249,7 @@ export default function Board() {
       </div>
 
       {/* 创建弹窗 */}
-      {showCreateModal && (
-        <TaskForm
-          onSubmit={handleCreate}
-          onCancel={() => setShowCreateModal(false)}
-        />
-      )}
+      {showCreateModal && <TaskForm onSubmit={handleCreate} onCancel={() => setShowCreateModal(false)} />}
     </div>
   );
 }

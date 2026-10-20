@@ -89,9 +89,7 @@ export interface AgentCapabilityInfo {
 }
 
 /** 安全解析 Agent 能力 JSON */
-export function parseAgentCapabilities(agent: {
-  capabilities?: string;
-}): AgentCapabilityInfo {
+export function parseAgentCapabilities(agent: { capabilities?: string }): AgentCapabilityInfo {
   try {
     const parsed = JSON.parse(agent.capabilities || "{}");
     return typeof parsed === "object" && parsed !== null ? parsed : {};
@@ -153,15 +151,7 @@ export interface AgentSession {
 
 /** 会话消息块类型 */
 export type SessionBlockType =
-  | "text"
-  | "thinking"
-  | "tool_use"
-  | "tool_result"
-  | "result"
-  | "context"
-  | "permission_denied"
-  | "error"
-  | "system";
+  "text" | "thinking" | "tool_use" | "tool_result" | "result" | "context" | "permission_denied" | "error" | "system";
 
 /** 会话消息块（模块 16 / F076） */
 export interface SessionMessage {

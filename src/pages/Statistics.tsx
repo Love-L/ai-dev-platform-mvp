@@ -1,11 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import {
-  BarChart3,
-  CheckCircle,
-  Clock,
-  Coins,
-} from "lucide-react";
+import { BarChart3, CheckCircle, Clock, Coins } from "lucide-react";
 import {
   getStatistics,
   listTasks,
@@ -50,16 +45,17 @@ export default function Statistics() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center gap-3 text-sm" style={{ color: "var(--color-text-tertiary)" }}>
-          <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "var(--color-border)", borderTopColor: "var(--color-primary)" }} />
+          <div
+            className="w-4 h-4 border-2 rounded-full animate-spin"
+            style={{ borderColor: "var(--color-border)", borderTopColor: "var(--color-primary)" }}
+          />
           加载中...
         </div>
       </div>
     );
   }
 
-  const completionRate = stats?.tasks.total
-    ? Math.round((stats.tasks.completed / stats.tasks.total) * 100)
-    : 0;
+  const completionRate = stats?.tasks.total ? Math.round((stats.tasks.completed / stats.tasks.total) * 100) : 0;
 
   const byPriority = {
     P0: tasks.filter((t) => t.priority === "P0").length,
@@ -102,13 +98,13 @@ export default function Statistics() {
   return (
     <div className="p-6 space-y-5">
       {/* 页面标题 */}
-      <motion.div
-        initial={{ opacity: 0, y: -6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-      >
-        <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>统计报表</h1>
-        <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>多维度任务执行效率统计</p>
+      <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+        <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>
+          统计报表
+        </h1>
+        <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+          多维度任务执行效率统计
+        </p>
       </motion.div>
 
       {/* 概览卡片 */}
@@ -126,8 +122,12 @@ export default function Statistics() {
                 <card.icon className="w-5 h-5" style={{ color: card.color }} strokeWidth={1.75} />
               </div>
               <div>
-                <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>{card.label}</p>
-                <p className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>{card.value}</p>
+                <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+                  {card.label}
+                </p>
+                <p className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>
+                  {card.value}
+                </p>
               </div>
             </div>
           </motion.div>
@@ -202,19 +202,30 @@ export default function Statistics() {
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
               <span style={{ color: "var(--color-text-tertiary)" }}>输入 Token</span>
-              <span className="font-medium" style={{ color: "var(--color-text-secondary)" }}>{(stats?.tokens.input || 0).toLocaleString()}</span>
+              <span className="font-medium" style={{ color: "var(--color-text-secondary)" }}>
+                {(stats?.tokens.input || 0).toLocaleString()}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span style={{ color: "var(--color-text-tertiary)" }}>输出 Token</span>
-              <span className="font-medium" style={{ color: "var(--color-text-secondary)" }}>{(stats?.tokens.output || 0).toLocaleString()}</span>
+              <span className="font-medium" style={{ color: "var(--color-text-secondary)" }}>
+                {(stats?.tokens.output || 0).toLocaleString()}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span style={{ color: "var(--color-text-tertiary)" }}>总消耗</span>
-              <span className="font-medium" style={{ color: "var(--color-text-secondary)" }}>{(stats?.tokens.total || 0).toLocaleString()}</span>
+              <span className="font-medium" style={{ color: "var(--color-text-secondary)" }}>
+                {(stats?.tokens.total || 0).toLocaleString()}
+              </span>
             </div>
-            <div className="flex justify-between text-sm pt-2" style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
+            <div
+              className="flex justify-between text-sm pt-2"
+              style={{ borderTop: "1px solid var(--color-border-subtle)" }}
+            >
               <span style={{ color: "var(--color-text-tertiary)" }}>总费用</span>
-              <span className="font-semibold" style={{ color: "var(--color-text)" }}>${(stats?.tokens.cost || 0).toFixed(2)}</span>
+              <span className="font-semibold" style={{ color: "var(--color-text)" }}>
+                ${(stats?.tokens.cost || 0).toFixed(2)}
+              </span>
             </div>
           </div>
         </div>
@@ -223,19 +234,25 @@ export default function Statistics() {
         <div className="panel">
           <h2 className="panel-title mb-4">Skill 使用统计</h2>
           {skillStats.length === 0 ? (
-            <p className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>暂无 Skill 调用记录</p>
+            <p className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>
+              暂无 Skill 调用记录
+            </p>
           ) : (
             <div className="space-y-3">
               {skillStats.map((item) => (
                 <div key={item.skill_name} className="flex items-center justify-between text-sm">
                   <div className="min-w-0">
-                    <p className="truncate" style={{ color: "var(--color-text-secondary)" }}>{item.skill_name}</p>
+                    <p className="truncate" style={{ color: "var(--color-text-secondary)" }}>
+                      {item.skill_name}
+                    </p>
                     <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
                       {item.skill_type || "未分类"} · {item.total_tokens.toLocaleString()} tokens
                     </p>
                   </div>
                   <div className="text-right shrink-0 ml-3">
-                    <p className="font-medium" style={{ color: "var(--color-text)" }}>{item.use_count} 次</p>
+                    <p className="font-medium" style={{ color: "var(--color-text)" }}>
+                      {item.use_count} 次
+                    </p>
                     <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
                       成功率 {item.use_count > 0 ? Math.round((item.success_count / item.use_count) * 100) : 0}%
                     </p>
@@ -250,19 +267,25 @@ export default function Statistics() {
         <div className="panel">
           <h2 className="panel-title mb-4">MCP 使用统计</h2>
           {mcpStats.length === 0 ? (
-            <p className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>暂无 MCP 调用记录</p>
+            <p className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>
+              暂无 MCP 调用记录
+            </p>
           ) : (
             <div className="space-y-3">
               {mcpStats.map((item) => (
                 <div key={item.mcp_name} className="flex items-center justify-between text-sm">
                   <div className="min-w-0">
-                    <p className="truncate" style={{ color: "var(--color-text-secondary)" }}>{item.mcp_name}</p>
+                    <p className="truncate" style={{ color: "var(--color-text-secondary)" }}>
+                      {item.mcp_name}
+                    </p>
                     <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
                       平均耗时 {Math.round(item.avg_duration ?? 0)} ms
                     </p>
                   </div>
                   <div className="text-right shrink-0 ml-3">
-                    <p className="font-medium" style={{ color: "var(--color-text)" }}>{item.call_count} 次</p>
+                    <p className="font-medium" style={{ color: "var(--color-text)" }}>
+                      {item.call_count} 次
+                    </p>
                     <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
                       成功率 {item.call_count > 0 ? Math.round((item.success_count / item.call_count) * 100) : 0}%
                     </p>
@@ -277,17 +300,7 @@ export default function Statistics() {
   );
 }
 
-function ProgressRow({
-  label,
-  count,
-  total,
-  color,
-}: {
-  label: string;
-  count: number;
-  total: number;
-  color: string;
-}) {
+function ProgressRow({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
   const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
 
   return (

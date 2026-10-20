@@ -84,7 +84,9 @@ export default function RequirementDetail() {
   useEffect(() => {
     if (id) loadRequirement(id);
     // 加载可用 Skill 列表
-    listPrdSkills().then(setSkills).catch(() => {});
+    listPrdSkills()
+      .then(setSkills)
+      .catch(() => {});
   }, [id]);
 
   // 订阅流式 PRD 增量（F049）。必须在调用命令前完成注册，且只处理当前需求的事件。
@@ -125,9 +127,7 @@ export default function RequirementDetail() {
         setTester(data.tester || "");
         setBusinessPriority(data.business_priority || "");
         setEstimatedEffort(
-          data.estimated_effort === undefined || data.estimated_effort === null
-            ? ""
-            : String(data.estimated_effort)
+          data.estimated_effort === undefined || data.estimated_effort === null ? "" : String(data.estimated_effort),
         );
         setTags(data.tags || "");
         setNotes(data.notes || "");
@@ -192,8 +192,7 @@ export default function RequirementDetail() {
     setEnriching(true);
     try {
       const result = (await enrichRequirement(id)) as Record<string, unknown>;
-      const text = (v: unknown) =>
-        v === undefined || v === null || v === "" ? "" : String(v);
+      const text = (v: unknown) => (v === undefined || v === null || v === "" ? "" : String(v));
 
       const suggestedModule = text(result.module);
       const suggestedTags = text(result.tags);
@@ -237,10 +236,7 @@ export default function RequirementDetail() {
    * 需求内容代入：把需求元信息 + 描述 + PRD 组装为任务描述，
    * 使任务详情（及以任务为上下文的 Agent 会话）拿到完整需求内容。
    */
-  function buildRequirementContent(
-    r: Requirement,
-    type: "development" | "testing"
-  ): string {
+  function buildRequirementContent(r: Requirement, type: "development" | "testing"): string {
     const REQ_TYPE_LABEL: Record<string, string> = {
       feature: "功能",
       bug: "缺陷",
@@ -266,7 +262,7 @@ export default function RequirementDetail() {
     lines.push(
       type === "testing"
         ? "依据上方需求与 PRD 编写并执行测试，覆盖正常流与异常流。"
-        : "依据上方需求与 PRD 完成开发交付。"
+        : "依据上方需求与 PRD 完成开发交付。",
     );
     return lines.join("\n");
   }
@@ -300,17 +296,14 @@ export default function RequirementDetail() {
         undefined,
         requirement.tags || undefined,
         `由需求「${requirement.title}」一键创建`,
-        buildRequirementContent(requirement, type)
+        buildRequirementContent(requirement, type),
       );
       await fetchTasks();
       showToast("success", `${label}任务已创建`);
       navigate(`/tasks/${task.id}`);
     } catch (error) {
       console.error("创建任务失败:", error);
-      showToast(
-        "error",
-        `创建${label}任务失败: ` + (error instanceof Error ? error.message : String(error))
-      );
+      showToast("error", `创建${label}任务失败: ` + (error instanceof Error ? error.message : String(error)));
     } finally {
       setCreatingTask("");
     }
@@ -329,10 +322,7 @@ export default function RequirementDetail() {
     } catch (error) {
       console.error("生成PRD失败:", error);
       setStreamingText("");
-      showToast(
-        "error",
-        "生成PRD失败: " + (error instanceof Error ? error.message : String(error))
-      );
+      showToast("error", "生成PRD失败: " + (error instanceof Error ? error.message : String(error)));
     } finally {
       setGenerating(false);
     }
@@ -341,7 +331,7 @@ export default function RequirementDetail() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div style={{ color: 'var(--color-text-tertiary)', fontSize: '13px' }}>加载中...</div>
+        <div style={{ color: "var(--color-text-tertiary)", fontSize: "13px" }}>加载中...</div>
       </div>
     );
   }
@@ -349,7 +339,7 @@ export default function RequirementDetail() {
   if (!requirement) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div style={{ color: 'var(--color-text-tertiary)', fontSize: '13px' }}>需求不存在</div>
+        <div style={{ color: "var(--color-text-tertiary)", fontSize: "13px" }}>需求不存在</div>
       </div>
     );
   }
@@ -361,15 +351,25 @@ export default function RequirementDetail() {
         <button
           onClick={() => navigate("/requirements")}
           className="p-1.5 rounded-lg transition-colors"
-          style={{ color: 'var(--color-text-tertiary)' }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-bg-subtle)'; e.currentTarget.style.color = 'var(--color-text-secondary)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-tertiary)'; }}
+          style={{ color: "var(--color-text-tertiary)" }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--color-bg-subtle)";
+            e.currentTarget.style.color = "var(--color-text-secondary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "var(--color-text-tertiary)";
+          }}
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div>
-          <h1 className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>需求详情</h1>
-          <p className="mt-0.5" style={{ color: 'var(--color-text-tertiary)', fontSize: '13px' }}>编辑需求并生成PRD文档</p>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>
+            需求详情
+          </h1>
+          <p className="mt-0.5" style={{ color: "var(--color-text-tertiary)", fontSize: "13px" }}>
+            编辑需求并生成PRD文档
+          </p>
         </div>
       </div>
 
@@ -386,23 +386,14 @@ export default function RequirementDetail() {
                 className="btn-secondary text-xs"
                 title="调用 AI 分析需求并自动回填模块、标签、业务优先级等字段"
               >
-                {enriching ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="w-3.5 h-3.5" />
-                )}
+                {enriching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                 {enriching ? "分析中..." : "智能完善"}
               </button>
             </div>
             <div className="space-y-4">
               <div>
                 <label className="label">标题</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="input"
-                />
+                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="input" />
               </div>
               <div>
                 <label className="label">描述</label>
@@ -417,11 +408,7 @@ export default function RequirementDetail() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">优先级</label>
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                    className="select"
-                  >
+                  <select value={priority} onChange={(e) => setPriority(e.target.value)} className="select">
                     <option value="P0">P0 - 紧急</option>
                     <option value="P1">P1 - 高</option>
                     <option value="P2">P2 - 中</option>
@@ -446,11 +433,7 @@ export default function RequirementDetail() {
               </div>
               <div className="flex justify-end pt-2">
                 <button onClick={handleSave} disabled={saving} className="btn-primary">
-                  {saving ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4" />
-                  )}
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   保存修改
                 </button>
               </div>
@@ -487,11 +470,21 @@ export default function RequirementDetail() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="label">产品负责人</label>
-                  <input type="text" value={productOwner} onChange={(e) => setProductOwner(e.target.value)} className="input" />
+                  <input
+                    type="text"
+                    value={productOwner}
+                    onChange={(e) => setProductOwner(e.target.value)}
+                    className="input"
+                  />
                 </div>
                 <div>
                   <label className="label">开发负责人</label>
-                  <input type="text" value={developer} onChange={(e) => setDeveloper(e.target.value)} className="input" />
+                  <input
+                    type="text"
+                    value={developer}
+                    onChange={(e) => setDeveloper(e.target.value)}
+                    className="input"
+                  />
                 </div>
                 <div>
                   <label className="label">测试负责人</label>
@@ -572,16 +565,8 @@ export default function RequirementDetail() {
                     ))}
                   </select>
                 )}
-                <button
-                  onClick={handleGeneratePrd}
-                  disabled={generating}
-                  className="btn-primary"
-                >
-                  {generating ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Wand2 className="w-4 h-4" />
-                  )}
+                <button onClick={handleGeneratePrd} disabled={generating} className="btn-primary">
+                  {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                   {requirement.prd_content ? "重新生成" : "生成PRD"}
                 </button>
               </div>
@@ -590,21 +575,23 @@ export default function RequirementDetail() {
             {generating && streamingText ? (
               <div
                 className="rounded-lg p-4 text-sm leading-relaxed whitespace-pre-wrap font-mono"
-                style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-secondary)' }}
+                style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}
               >
                 {streamingText}
-                <span className="animate-pulse" style={{ color: 'var(--color-primary)' }}>▍</span>
+                <span className="animate-pulse" style={{ color: "var(--color-primary)" }}>
+                  ▍
+                </span>
               </div>
             ) : requirement.prd_content ? (
               <div
                 className="rounded-lg p-4 text-sm leading-relaxed whitespace-pre-wrap font-mono"
-                style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-secondary)' }}
+                style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}
               >
                 {requirement.prd_content}
               </div>
             ) : (
               <div className="empty-state py-10">
-                <Wand2 className="w-10 h-10 mb-3" style={{ color: 'var(--color-border)' }} />
+                <Wand2 className="w-10 h-10 mb-3" style={{ color: "var(--color-border)" }} />
                 <p className="empty-state-title">尚未生成PRD文档</p>
                 <p className="empty-state-desc">点击"生成PRD"按钮，AI将根据需求内容自动生成</p>
               </div>
@@ -619,24 +606,37 @@ export default function RequirementDetail() {
             <h2 className="panel-title mb-3">元信息</h2>
             <dl className="space-y-2.5">
               <div className="flex justify-between text-sm">
-                <dt style={{ color: 'var(--color-text-tertiary)' }}>创建时间</dt>
-                <dd style={{ color: 'var(--color-text-secondary)' }}>{new Date(requirement.created_at).toLocaleString("zh-CN")}</dd>
+                <dt style={{ color: "var(--color-text-tertiary)" }}>创建时间</dt>
+                <dd style={{ color: "var(--color-text-secondary)" }}>
+                  {new Date(requirement.created_at).toLocaleString("zh-CN")}
+                </dd>
               </div>
               <div className="flex justify-between text-sm">
-                <dt style={{ color: 'var(--color-text-tertiary)' }}>更新时间</dt>
-                <dd style={{ color: 'var(--color-text-secondary)' }}>{new Date(requirement.updated_at).toLocaleString("zh-CN")}</dd>
+                <dt style={{ color: "var(--color-text-tertiary)" }}>更新时间</dt>
+                <dd style={{ color: "var(--color-text-secondary)" }}>
+                  {new Date(requirement.updated_at).toLocaleString("zh-CN")}
+                </dd>
               </div>
               <div className="flex justify-between text-sm">
-                <dt style={{ color: 'var(--color-text-tertiary)' }}>ID</dt>
-                <dd className="text-xs font-mono truncate max-w-[120px]" style={{ color: 'var(--color-text-tertiary)' }}>{requirement.id}</dd>
+                <dt style={{ color: "var(--color-text-tertiary)" }}>ID</dt>
+                <dd
+                  className="text-xs font-mono truncate max-w-[120px]"
+                  style={{ color: "var(--color-text-tertiary)" }}
+                >
+                  {requirement.id}
+                </dd>
               </div>
               <div className="flex justify-between text-sm">
-                <dt style={{ color: 'var(--color-text-tertiary)' }}>状态</dt>
-                <dd><StatusBadge status={requirement.status} /></dd>
+                <dt style={{ color: "var(--color-text-tertiary)" }}>状态</dt>
+                <dd>
+                  <StatusBadge status={requirement.status} />
+                </dd>
               </div>
               <div className="flex justify-between text-sm">
-                <dt style={{ color: 'var(--color-text-tertiary)' }}>优先级</dt>
-                <dd><PriorityBadge priority={requirement.priority} /></dd>
+                <dt style={{ color: "var(--color-text-tertiary)" }}>优先级</dt>
+                <dd>
+                  <PriorityBadge priority={requirement.priority} />
+                </dd>
               </div>
             </dl>
           </div>
@@ -696,9 +696,7 @@ export default function RequirementDetail() {
                 )}
                 创建测试任务
               </button>
-              {!["approved", "frozen", "in_development", "testing", "completed"].includes(
-                requirement.status
-              ) && (
+              {!["approved", "frozen", "in_development", "testing", "completed"].includes(requirement.status) && (
                 <p className="text-[11px] pt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
                   当前需求尚未通过评审，建议通过后创建任务
                 </p>

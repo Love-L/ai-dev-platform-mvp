@@ -21,6 +21,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 ## Phase 1：P0紧急修复（3-4天）
 
 ### 目标
+
 修复影响核心功能的关键问题
 
 ### 任务1.1：修复Agent数据持久化（0.5天）
@@ -28,6 +29,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** Agent检测后未正确持久化，每次进入页面需重新刷新
 
 **涉及文件：**
+
 - `src-tauri/src/services/agent_service.rs`
 - `src-tauri/src/db/agents.rs`
 - `src/pages/Agents.tsx`
@@ -47,6 +49,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    - 确认discover_agents是否仅在刷新时调用
 
 **验收标准：**
+
 - 首次检测Agent后，下次进入页面直接显示已有数据
 - 无需每次刷新重新检测
 
@@ -57,12 +60,14 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** 状态栏显示系统内存(18113/32374MB)而非应用内存
 
 **涉及文件：**
+
 - `src-tauri/src/system_monitor.rs`
 - `src/components/Layout.tsx`
 
 **修复内容：**
 
 1. **修改system_monitor.rs的get_data函数**
+
    ```rust
    // 当前代码（系统级内存）
    let memory = sys.total_memory();
@@ -86,6 +91,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    - 移除系统内存显示
 
 **验收标准：**
+
 - 状态栏显示应用内存（如215MB）而非系统内存
 - 内存数值每2秒刷新
 
@@ -96,6 +102,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** SkillManagement.tsx仅有只读列表，无CRUD功能
 
 **涉及文件：**
+
 - `src-tauri/src/commands.rs`（新增命令）
 - `src-tauri/src/services/prd_skill_service.rs`（新增方法）
 - `src-tauri/src/db/skills.rs`（新增方法）
@@ -106,6 +113,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **修复内容：**
 
 1. **后端：新增CRUD命令**
+
    ```rust
    // commands.rs新增
    #[tauri::command]
@@ -155,6 +163,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    - 更新PrdSkill类型
 
 **验收标准：**
+
 - 可新建自定义Skill
 - 可编辑Skill模板（CodeMirror编辑器）
 - 可删除自定义Skill（内置不可删）
@@ -167,6 +176,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** 无版本管理字段，无自定义版本创建功能
 
 **涉及文件：**
+
 - `src-tauri/src/db/migration.rs`（新增迁移）
 - `src-tauri/src/db/skills.rs`（新增方法）
 - `src-tauri/src/services/prd_skill_service.rs`（新增方法）
@@ -176,6 +186,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **修复内容：**
 
 1. **数据库迁移：添加版本字段**
+
    ```sql
    -- 新增迁移文件 005_skill_versioning.sql
    ALTER TABLE prd_skills ADD COLUMN version INTEGER DEFAULT 1;
@@ -189,6 +200,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    - 新增restore_skill_version命令（恢复到指定版本）
 
 3. **后端：更新PrdSkill结构体**
+
    ```rust
    pub struct PrdSkill {
        // 现有字段...
@@ -204,6 +216,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    - 版本恢复功能
 
 **验收标准：**
+
 - 可基于内置Skill创建自定义版本
 - 可查看版本历史
 - 可恢复到指定版本
@@ -214,6 +227,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 ## Phase 2：P1重要修复（4-5天）
 
 ### 目标
+
 完善核心业务流程
 
 ### 任务2.1：实现会话双模式自动创建逻辑（1天）
@@ -221,6 +235,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** Settings有UI设置，但自动创建逻辑未实现
 
 **涉及文件：**
+
 - `src-tauri/src/services/task_service.rs`（修改）
 - `src-tauri/src/services/agent_service.rs`（新增方法）
 - `src-tauri/src/commands.rs`（新增命令）
@@ -229,6 +244,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **修复内容：**
 
 1. **后端：监听任务状态变更**
+
    ```rust
    // task_service.rs
    pub async fn update_task_status(&self, task_id: &str, new_status: &str) -> Result<(), AppError> {
@@ -239,6 +255,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    ```
 
 2. **后端：实现自动创建会话**
+
    ```rust
    // agent_service.rs
    pub async fn create_session_from_task(&self, task_id: &str, project_id: &str) -> Result<AgentSession, AppError> {
@@ -250,6 +267,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    ```
 
 3. **后端：新增命令**
+
    ```rust
    #[tauri::command]
    pub async fn create_session_from_task(
@@ -263,6 +281,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    - 点击按钮调用create_session_from_task
 
 **验收标准：**
+
 - 自动模式：任务状态变为in_progress时自动创建会话
 - 手动模式：任务详情页显示"开启会话"按钮
 - 创建的会话正确关联task_id
@@ -274,6 +293,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** Pagination.tsx组件已创建，但未集成到列表
 
 **涉及文件：**
+
 - `src-tauri/src/commands.rs`（修改所有list_*命令）
 - `src-tauri/src/services/*.rs`（修改所有list方法）
 - `src-tauri/src/db/*.rs`（修改所有查询）
@@ -285,6 +305,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **修复内容：**
 
 1. **后端：定义分页结构体**
+
    ```rust
    // 新增 src-tauri/src/pagination.rs
    pub struct PaginationParams {
@@ -301,7 +322,8 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    }
    ```
 
-2. **后端：修改list_*命令**
+2. **后端：修改list\_*命令**
+
    ```rust
    #[tauri::command]
    pub async fn list_requirements(
@@ -323,6 +345,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    - 切换页面时重新请求数据
 
 **验收标准：**
+
 - 列表显示分页组件
 - 可切换页码
 - 每页显示指定数量（默认20条）
@@ -335,6 +358,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** 无前置检查，可直接删除关联数据
 
 **涉及文件：**
+
 - `src-tauri/src/commands.rs`（修改delete_*命令）
 - `src-tauri/src/services/*.rs`（新增检查方法）
 - `src-tauri/src/db/*.rs`（新增计数查询）
@@ -342,6 +366,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **修复内容：**
 
 1. **后端：实现检查函数**
+
    ```rust
    // project_service.rs
    pub async fn check_can_delete_project(&self, project_id: &str) -> Result<(), AppError> {
@@ -369,7 +394,8 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    }
    ```
 
-2. **后端：修改delete_*命令**
+2. **后端：修改delete\_*命令**
+
    ```rust
    #[tauri::command]
    pub async fn delete_project(
@@ -396,6 +422,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    ```
 
 **验收标准：**
+
 - 删除有关联数据的项目时，返回错误提示
 - 删除有关联任务的需求时，返回错误提示
 - 错误信息包含关联数据数量
@@ -407,6 +434,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** 创建需求/任务时无法选择所属项目
 
 **涉及文件：**
+
 - `src/components/ProjectSelector.tsx`（新增组件）
 - `src/pages/Requirements.tsx`（集成）
 - `src/pages/Board.tsx`（集成）
@@ -415,17 +443,18 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **修复内容：**
 
 1. **新建ProjectSelector组件**
+
    ```tsx
    interface ProjectSelectorProps {
-       value?: string;
-       onChange?: (projectId: string) => void;
-       showAll?: boolean; // 是否显示"全部"选项
+     value?: string;
+     onChange?: (projectId: string) => void;
+     showAll?: boolean; // 是否显示"全部"选项
    }
 
    export default function ProjectSelector({ value, onChange, showAll }: ProjectSelectorProps) {
-       // 1. 加载项目列表
-       // 2. 下拉选择
-       // 3. 默认选中最近使用的项目
+     // 1. 加载项目列表
+     // 2. 下拉选择
+     // 3. 默认选中最近使用的项目
    }
    ```
 
@@ -438,6 +467,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    - 选择项目后筛选任务
 
 **验收标准：**
+
 - 创建需求/任务时可选择所属项目
 - 看板顶部可按项目筛选
 - 默认选中最近使用的项目
@@ -449,6 +479,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** AttachmentList.tsx组件已创建，但未接入后端
 
 **涉及文件：**
+
 - `src-tauri/src/commands.rs`（新增命令）
 - `src-tauri/src/services/requirement_service.rs`（新增方法）
 - `src/components/AttachmentList.tsx`（修改）
@@ -461,6 +492,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    - 数据库存储路径列表（JSON数组）
 
 2. **后端：新增命令**
+
    ```rust
    #[tauri::command]
    pub async fn add_attachment(
@@ -483,6 +515,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    - 使用Tauri对话框选择文件
 
 **验收标准：**
+
 - 可为需求添加附件（文件路径）
 - 可删除附件
 - 附件列表正确显示
@@ -494,6 +527,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** AuditLog.tsx页面已创建，但无数据来源
 
 **涉及文件：**
+
 - `src-tauri/src/commands.rs`（新增命令）
 - `src-tauri/src/services/requirement_service.rs`（新增方法）
 - `src-tauri/src/services/task_service.rs`（新增方法）
@@ -506,6 +540,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    - 任务状态变更时写入task_history表（需新建）
 
 2. **后端：新增查询命令**
+
    ```rust
    #[tauri::command]
    pub async fn list_audit_logs(
@@ -521,6 +556,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    - 显示操作类型、操作人、变更内容
 
 **验收标准：**
+
 - 需求/任务状态变更时自动记录
 - AuditLog页面显示操作历史
 - 可按实体类型/ID筛选
@@ -530,6 +566,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 ## Phase 3：P2优化修复（3-4天）
 
 ### 目标
+
 提升代码质量和用户体验
 
 ### 任务3.1：完成前端统一数据层（1天）
@@ -537,6 +574,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** 5个Store已创建，但部分页面仍直接调IPC
 
 **涉及文件：**
+
 - `src/stores/costStore.ts`（新增）
 - `src/stores/statisticsStore.ts`（新增）
 - `src/stores/commitsStore.ts`（新增）
@@ -549,14 +587,19 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **修复内容：**
 
 1. **新建缺失的Store**
+
    ```typescript
    // stores/costStore.ts
    export const useCostStore = create((set) => ({
-       summary: null,
-       dailyUsage: [],
-       loading: false,
-       fetchSummary: async () => { /* ... */ },
-       fetchDailyUsage: async () => { /* ... */ },
+     summary: null,
+     dailyUsage: [],
+     loading: false,
+     fetchSummary: async () => {
+       /* ... */
+     },
+     fetchDailyUsage: async () => {
+       /* ... */
+     },
    }));
    ```
 
@@ -570,6 +613,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    - 导出所有新Store
 
 **验收标准：**
+
 - 所有页面通过Store获取数据
 - 无直接IPC调用（除Store外）
 - 数据加载状态统一管理
@@ -581,28 +625,30 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** 多个页面无cleanup，可能存在内存泄漏
 
 **涉及文件：**
+
 - `src/pages/*.tsx`（所有含useEffect的页面）
 - `src/components/Layout.tsx`
 
 **修复内容：**
 
 1. **统一useEffect模式**
+
    ```typescript
    useEffect(() => {
-       let cancelled = false;
+     let cancelled = false;
 
-       async function load() {
-           const data = await fetchXxx();
-           if (!cancelled) setData(data);
-       }
+     async function load() {
+       const data = await fetchXxx();
+       if (!cancelled) setData(data);
+     }
 
-       load();
-       const timer = setInterval(load, interval);
+     load();
+     const timer = setInterval(load, interval);
 
-       return () => {
-           cancelled = true;
-           clearInterval(timer);
-       };
+     return () => {
+       cancelled = true;
+       clearInterval(timer);
+     };
    }, []);
    ```
 
@@ -624,22 +670,26 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    let pollTimer: number | null = null;
 
    export const useSystemMonitorStore = create((set) => ({
-       // ...
-       startPolling: () => {
-           if (pollTimer) return;
-           pollTimer = window.setInterval(async () => {
-               if (document.hidden) return; // 页面不可见时暂停
-               const info = await getMonitorData();
-               set({ memory: info.memory_used_mb, sessions: info.active_sessions });
-           }, 2000);
-       },
-       stopPolling: () => {
-           if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-       },
+     // ...
+     startPolling: () => {
+       if (pollTimer) return;
+       pollTimer = window.setInterval(async () => {
+         if (document.hidden) return; // 页面不可见时暂停
+         const info = await getMonitorData();
+         set({ memory: info.memory_used_mb, sessions: info.active_sessions });
+       }, 2000);
+     },
+     stopPolling: () => {
+       if (pollTimer) {
+         clearInterval(pollTimer);
+         pollTimer = null;
+       }
+     },
    }));
    ```
 
 **验收标准：**
+
 - 所有useEffect有cleanup函数
 - 组件卸载时清除定时器
 - 状态栏轮询使用单例模式
@@ -652,6 +702,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** Toast.tsx已创建，但未集成到操作流程
 
 **涉及文件：**
+
 - `src/components/Toast.tsx`（完善）
 - `src/App.tsx`（添加Provider）
 - `src/pages/*.tsx`（集成调用）
@@ -659,10 +710,11 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **修复内容：**
 
 1. **完善Toast组件**
+
    ```typescript
    // components/Toast.tsx
    interface ToastContextType {
-       showToast: (message: string, type: 'success' | 'error' | 'warning') => void;
+     showToast: (message: string, type: "success" | "error" | "warning") => void;
    }
 
    export const ToastContext = createContext<ToastContextType>({});
@@ -670,15 +722,14 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    ```
 
 2. **App.tsx添加Provider**
+
    ```tsx
    function App() {
-       return (
-           <ToastProvider>
-               <Router>
-                   {/* ... */}
-               </Router>
-           </ToastProvider>
-       );
+     return (
+       <ToastProvider>
+         <Router>{/* ... */}</Router>
+       </ToastProvider>
+     );
    }
    ```
 
@@ -687,16 +738,17 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    const { showToast } = useToast();
 
    async function handleSave() {
-       try {
-           await saveData();
-           showToast('保存成功', 'success');
-       } catch (error) {
-           showToast('保存失败: ' + error.message, 'error');
-       }
+     try {
+       await saveData();
+       showToast("保存成功", "success");
+     } catch (error) {
+       showToast("保存失败: " + error.message, "error");
+     }
    }
    ```
 
 **验收标准：**
+
 - 操作成功显示绿色Toast
 - 操作失败显示红色Toast
 - Toast自动消失（3秒）
@@ -709,6 +761,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** 无submitting状态管理
 
 **涉及文件：**
+
 - `src/pages/Requirements.tsx`
 - `src/pages/Board.tsx`
 - `src/pages/Projects.tsx`
@@ -718,31 +771,33 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **修复内容：**
 
 1. **统一防重复提交模式**
+
    ```typescript
    const [submitting, setSubmitting] = useState(false);
 
    async function handleCreate() {
-       if (submitting) return;
-       setSubmitting(true);
-       try {
-           await createXxx();
-           showToast('创建成功', 'success');
-       } catch (error) {
-           showToast('创建失败', 'error');
-       } finally {
-           setSubmitting(false);
-       }
+     if (submitting) return;
+     setSubmitting(true);
+     try {
+       await createXxx();
+       showToast("创建成功", "success");
+     } catch (error) {
+       showToast("创建失败", "error");
+     } finally {
+       setSubmitting(false);
+     }
    }
    ```
 
 2. **按钮状态管理**
    ```tsx
    <button onClick={handleCreate} disabled={submitting}>
-       {submitting ? '提交中...' : '创建'}
+     {submitting ? "提交中..." : "创建"}
    </button>
    ```
 
 **验收标准：**
+
 - 提交过程中按钮显示"提交中..."
 - 按钮禁用防止重复点击
 - 提交完成后恢复按钮状态
@@ -754,6 +809,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **问题描述：** package.json版本过旧(0.1.0)
 
 **涉及文件：**
+
 - `package.json`
 
 **修复内容：**
@@ -765,6 +821,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 ```
 
 **验收标准：**
+
 - package.json版本与tauri.conf.json一致
 - 所有版本号统一为2.3.0
 
@@ -773,11 +830,13 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 ## Phase 4：P3补充修复（5-7天）
 
 ### 目标
+
 补充基础设施和文档
 
 ### 任务4.1：补充单元测试（2天）
 
 **涉及文件：**
+
 - `src-tauri/src/validation.rs`（测试）
 - `src-tauri/src/crypto.rs`（测试）
 - `src-tauri/src/services/*.rs`（测试）
@@ -787,6 +846,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 **修复内容：**
 
 1. **后端单元测试**
+
    ```rust
    #[cfg(test)]
    mod tests {
@@ -813,6 +873,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
    ```
 
 **验收标准：**
+
 - 核心函数有单元测试
 - 测试覆盖率达到30%+
 - 所有测试通过
@@ -822,6 +883,7 @@ Phase 1 (P0紧急) → Phase 2 (P1重要) → Phase 3 (P2优化) → Phase 4 (P3
 ### 任务4.2：添加.gitignore（0.5天）
 
 **涉及文件：**
+
 - `.gitignore`（新增）
 
 **修复内容：**
@@ -855,6 +917,7 @@ Thumbs.db
 ```
 
 **验收标准：**
+
 - 构建产物不被提交
 - 依赖目录不被提交
 - 敏感信息不被提交
@@ -864,6 +927,7 @@ Thumbs.db
 ### 任务4.3：添加CLAUDE.md（0.5天）
 
 **涉及文件：**
+
 - `CLAUDE.md`（新增）
 
 **修复内容：**
@@ -872,32 +936,38 @@ Thumbs.db
 # CLAUDE.md
 
 ## 项目概述
+
 AI Collaboration Engine (ACE) - 基于Tauri 2.0的桌面应用
 
 ## 技术栈
+
 - 前端：React + TypeScript + Tailwind CSS
 - 后端：Rust + Tauri 2.0
 - 数据库：SQLite
 - 状态管理：Zustand
 
 ## 开发命令
+
 - 安装依赖：`npm install`
 - 开发模式：`npm run tauri dev`
 - 构建：`npm run tauri build`
 - 测试：`npm test`
 
 ## 代码规范
+
 - Rust：rustfmt + clippy
 - TypeScript：eslint + prettier
 - 提交信息：遵循Conventional Commits
 
 ## 项目结构
+
 - `src/` - 前端代码
 - `src-tauri/` - 后端代码
 - `docs/` - 文档
 ```
 
 **验收标准：**
+
 - AI助手可读取项目上下文
 - 开发者可快速了解项目结构
 
@@ -906,6 +976,7 @@ AI Collaboration Engine (ACE) - 基于Tauri 2.0的桌面应用
 ### 任务4.4：添加变更日志（0.5天）
 
 **涉及文件：**
+
 - `CHANGELOG.md`（新增）
 
 **修复内容：**
@@ -916,6 +987,7 @@ AI Collaboration Engine (ACE) - 基于Tauri 2.0的桌面应用
 ## [2.3.0] - 2026-09-20
 
 ### Added
+
 - Agent数据持久化
 - 系统资源监控（应用内存）
 - Skill管理CRUD功能
@@ -929,15 +1001,18 @@ AI Collaboration Engine (ACE) - 基于Tauri 2.0的桌面应用
 - Toast通知系统
 
 ### Fixed
+
 - Agent检测后数据丢失
 - 状态栏显示系统内存而非应用内存
 - Skill管理无法编辑/删除
 
 ### Changed
+
 - 统一版本号为2.3.0
 ```
 
 **验收标准：**
+
 - 记录所有版本变更
 - 按Added/Fixed/Changed分类
 
@@ -946,6 +1021,7 @@ AI Collaboration Engine (ACE) - 基于Tauri 2.0的桌面应用
 ### 任务4.5：添加API文档（1天）
 
 **涉及文件：**
+
 - `docs/api.md`（新增）
 
 **修复内容：**
@@ -965,6 +1041,7 @@ AI Collaboration Engine (ACE) - 基于Tauri 2.0的桌面应用
    - PrdSkill
 
 **验收标准：**
+
 - 覆盖所有后端命令
 - 参数和返回类型清晰
 - 包含使用示例
@@ -974,6 +1051,7 @@ AI Collaboration Engine (ACE) - 基于Tauri 2.0的桌面应用
 ### 任务4.6：添加用户指南（1天）
 
 **涉及文件：**
+
 - `docs/user-guide.md`（新增）
 
 **修复内容：**
@@ -997,6 +1075,7 @@ AI Collaboration Engine (ACE) - 基于Tauri 2.0的桌面应用
    - 数据备份
 
 **验收标准：**
+
 - 覆盖所有核心功能
 - 包含截图示例
 - 解答常见问题
@@ -1040,24 +1119,26 @@ Phase 4
 
 ## 风险与缓解
 
-| 风险 | 影响 | 缓解措施 |
-|-----|------|---------|
-| 数据库迁移失败 | 数据丢失 | 迁移前自动备份 |
-| Skill版本管理复杂 | 开发延期 | 先实现基础CRUD，版本管理可简化 |
-| 分页系统影响性能 | 用户体验差 | 先实现后端分页，前端渐进集成 |
-| 测试覆盖率不足 | 质量风险 | 优先测试核心功能 |
+| 风险              | 影响       | 缓解措施                       |
+| ----------------- | ---------- | ------------------------------ |
+| 数据库迁移失败    | 数据丢失   | 迁移前自动备份                 |
+| Skill版本管理复杂 | 开发延期   | 先实现基础CRUD，版本管理可简化 |
+| 分页系统影响性能  | 用户体验差 | 先实现后端分页，前端渐进集成   |
+| 测试覆盖率不足    | 质量风险   | 优先测试核心功能               |
 
 ---
 
 ## 验收检查清单
 
 ### Phase 1验收
+
 - [ ] Agent检测后持久化，下次直接加载
 - [ ] 状态栏显示应用内存（如215MB）
 - [ ] Skill管理可新建/编辑/删除
 - [ ] Skill可创建自定义版本
 
 ### Phase 2验收
+
 - [ ] 自动模式下任务状态变更自动创建会话
 - [ ] 列表显示分页组件，可切换页码
 - [ ] 删除有关联数据时返回错误提示
@@ -1066,6 +1147,7 @@ Phase 4
 - [ ] AuditLog显示操作历史
 
 ### Phase 3验收
+
 - [ ] 所有页面通过Store获取数据
 - [ ] 所有useEffect有cleanup
 - [ ] 操作成功/失败显示Toast
@@ -1073,6 +1155,7 @@ Phase 4
 - [ ] 版本号统一为2.3.0
 
 ### Phase 4验收
+
 - [ ] 核心函数有单元测试
 - [ ] .gitignore正确配置
 - [ ] CLAUDE.md已添加

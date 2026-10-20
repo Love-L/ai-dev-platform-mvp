@@ -1,4 +1,4 @@
-import { ExternalLink, Trash2 } from 'lucide-react';
+import { ExternalLink, Trash2 } from "lucide-react";
 
 interface Attachment {
   name: string;
@@ -15,7 +15,7 @@ interface AttachmentListProps {
 export default function AttachmentList({ attachments, onRemove, readonly = false }: AttachmentListProps) {
   if (attachments.length === 0) {
     return (
-      <div style={{ color: 'var(--color-text-tertiary)', fontSize: '13px' }} className="py-2">
+      <div style={{ color: "var(--color-text-tertiary)", fontSize: "13px" }} className="py-2">
         暂无附件
       </div>
     );
@@ -29,32 +29,32 @@ export default function AttachmentList({ attachments, onRemove, readonly = false
   }
 
   function getFileExtension(filename: string) {
-    return filename.split('.').pop()?.toLowerCase() || '';
+    return filename.split(".").pop()?.toLowerCase() || "";
   }
 
   function getFileIcon(ext: string) {
     switch (ext) {
-      case 'pdf':
-        return '📄';
-      case 'doc':
-      case 'docx':
-        return '📝';
-      case 'xls':
-      case 'xlsx':
-        return '📊';
-      case 'ppt':
-      case 'pptx':
-        return '📑';
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-        return '🖼️';
-      case 'zip':
-      case 'rar':
-        return '📦';
+      case "pdf":
+        return "📄";
+      case "doc":
+      case "docx":
+        return "📝";
+      case "xls":
+      case "xlsx":
+        return "📊";
+      case "ppt":
+      case "pptx":
+        return "📑";
+      case "jpg":
+      case "jpeg":
+      case "png":
+      case "gif":
+        return "🖼️";
+      case "zip":
+      case "rar":
+        return "📦";
       default:
-        return '📎';
+        return "📎";
     }
   }
 
@@ -64,16 +64,20 @@ export default function AttachmentList({ attachments, onRemove, readonly = false
         <div
           key={index}
           className="flex items-center justify-between p-2 rounded-lg transition-colors"
-          style={{ background: 'var(--color-bg-subtle)' }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-muted)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'var(--color-bg-subtle)'}
+          style={{ background: "var(--color-bg-subtle)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-bg-muted)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-bg-subtle)")}
         >
           <div className="flex items-center gap-2">
             <span className="text-lg">{getFileIcon(getFileExtension(attachment.name))}</span>
             <div>
-              <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>{attachment.name}</p>
+              <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
+                {attachment.name}
+              </p>
               {attachment.size && (
-                <p style={{ color: 'var(--color-text-tertiary)', fontSize: '11px' }}>{formatFileSize(attachment.size)}</p>
+                <p style={{ color: "var(--color-text-tertiary)", fontSize: "11px" }}>
+                  {formatFileSize(attachment.size)}
+                </p>
               )}
             </div>
           </div>
@@ -83,9 +87,15 @@ export default function AttachmentList({ attachments, onRemove, readonly = false
               target="_blank"
               rel="noopener noreferrer"
               className="p-1.5 rounded-lg transition-colors"
-              style={{ color: 'var(--color-text-tertiary)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-primary)'; e.currentTarget.style.background = 'var(--color-primary-light)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-tertiary)'; e.currentTarget.style.background = 'transparent'; }}
+              style={{ color: "var(--color-text-tertiary)" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--color-primary)";
+                e.currentTarget.style.background = "var(--color-primary-light)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--color-text-tertiary)";
+                e.currentTarget.style.background = "transparent";
+              }}
               title="打开"
             >
               <ExternalLink className="w-4 h-4" />
@@ -94,9 +104,15 @@ export default function AttachmentList({ attachments, onRemove, readonly = false
               <button
                 onClick={() => onRemove(index)}
                 className="p-1.5 rounded-lg transition-colors"
-                style={{ color: 'var(--color-text-tertiary)' }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-danger)'; e.currentTarget.style.background = 'var(--color-danger-light)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-tertiary)'; e.currentTarget.style.background = 'transparent'; }}
+                style={{ color: "var(--color-text-tertiary)" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "var(--color-danger)";
+                  e.currentTarget.style.background = "var(--color-danger-light)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "var(--color-text-tertiary)";
+                  e.currentTarget.style.background = "transparent";
+                }}
                 title="移除"
               >
                 <Trash2 className="w-4 h-4" />

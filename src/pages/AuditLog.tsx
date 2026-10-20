@@ -72,7 +72,10 @@ export default function AuditLog() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="flex items-center gap-3 text-sm" style={{ color: "var(--color-text-tertiary)" }}>
-          <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "var(--color-border)", borderTopColor: "var(--color-primary)" }} />
+          <div
+            className="w-4 h-4 border-2 rounded-full animate-spin"
+            style={{ borderColor: "var(--color-border)", borderTopColor: "var(--color-primary)" }}
+          />
           加载中...
         </div>
       </div>
@@ -83,14 +86,21 @@ export default function AuditLog() {
     <div className="p-6 space-y-5">
       {/* 页面标题 */}
       <div>
-        <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>操作审计</h1>
-        <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>查看系统操作历史记录</p>
+        <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>
+          操作审计
+        </h1>
+        <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+          查看系统操作历史记录
+        </p>
       </div>
 
       {/* 筛选栏 */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <div className="relative flex-1 w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--color-text-tertiary)" }} />
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+            style={{ color: "var(--color-text-tertiary)" }}
+          />
           <input
             type="text"
             value={searchQuery}
@@ -99,11 +109,7 @@ export default function AuditLog() {
             className="input pl-9"
           />
         </div>
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="select w-full sm:w-auto"
-        >
+        <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="select w-full sm:w-auto">
           <option value="all">全部类型</option>
           <option value="requirement">需求</option>
           <option value="task">任务</option>
@@ -115,7 +121,9 @@ export default function AuditLog() {
       {filteredLogs.length === 0 ? (
         <div className="card p-12 text-center">
           <History className="w-10 h-10 mx-auto mb-3" style={{ color: "var(--color-text-tertiary)" }} />
-          <p className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>暂无操作记录</p>
+          <p className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>
+            暂无操作记录
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -130,7 +138,9 @@ export default function AuditLog() {
                     <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
                       {log.entity_type} - {log.entity_id}
                     </p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>{log.changes}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+                      {log.changes}
+                    </p>
                   </div>
                 </div>
                 <span className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>

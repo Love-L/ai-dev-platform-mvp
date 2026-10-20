@@ -81,29 +81,29 @@ ACE 自动发现机器上已安装的 CLI Agent（Claude Code、Codex CLI），�
 
 ## 功能总览
 
-| 模块 | 能力 |
-|------|------|
-| 项目管理 | 项目 CRUD、Skill/MCP 绑定、6 环节流水线配置 |
-| 需求管理 | 优先级/状态流转、富文本描述（TipTap）、**AI 生成 PRD**、字段智能完善、变更历史审计 |
-| 任务管理 | 拖拽看板（待开发/开发中/已完成）、任务字段扩展、从任务一键创建会话 |
-| Agent 管理 | PATH 自动发现 Claude Code / Codex、启停监控、检测结果持久化 |
-| 会话管理 | PTY 终端交互、双模式自动创建会话、执行日志 |
-| Skill 管理 | 内置模板、基于内置派生自定义版本、版本演进、使用统计 |
-| MCP 配置 | 按项目绑定 Model Context Protocol 端点 |
-| 统计分析 | Token 多维统计、预算告警、Skill 使用排行、系统监控 |
-| Git 集成 | 内置 status / diff / commit / log 面板 |
-| 基础设施 | 暗色主题、Toast 通知、删除保护策略、系统托盘 |
+| 模块       | 能力                                                                               |
+| ---------- | ---------------------------------------------------------------------------------- |
+| 项目管理   | 项目 CRUD、Skill/MCP 绑定、6 环节流水线配置                                        |
+| 需求管理   | 优先级/状态流转、富文本描述（TipTap）、**AI 生成 PRD**、字段智能完善、变更历史审计 |
+| 任务管理   | 拖拽看板（待开发/开发中/已完成）、任务字段扩展、从任务一键创建会话                 |
+| Agent 管理 | PATH 自动发现 Claude Code / Codex、启停监控、检测结果持久化                        |
+| 会话管理   | PTY 终端交互、双模式自动创建会话、执行日志                                         |
+| Skill 管理 | 内置模板、基于内置派生自定义版本、版本演进、使用统计                               |
+| MCP 配置   | 按项目绑定 Model Context Protocol 端点                                             |
+| 统计分析   | Token 多维统计、预算告警、Skill 使用排行、系统监控                                 |
+| Git 集成   | 内置 status / diff / commit / log 面板                                             |
+| 基础设施   | 暗色主题、Toast 通知、删除保护策略、系统托盘                                       |
 
 ## 技术栈
 
-| 层级 | 技术 |
-|------|------|
-| 桌面框架 | Tauri 2.0（安装包 ~10MB，对比 Electron 体量降 90%+） |
-| 后端 | Rust + rusqlite（WAL）+ AES-256-GCM 密钥库 |
-| 前端 | React 18 + TypeScript + TailwindCSS + Zustand |
-| 终端 | xterm.js + PTY 伪终端 |
-| LLM | Claude API（PRD 生成、字段完善、Token 记账） |
-| 测试 | Vitest 四层金字塔（组件/契约/混沌/IPC）+ Playwright E2E + cargo test |
+| 层级     | 技术                                                                 |
+| -------- | -------------------------------------------------------------------- |
+| 桌面框架 | Tauri 2.0（安装包 ~10MB，对比 Electron 体量降 90%+）                 |
+| 后端     | Rust + rusqlite（WAL）+ AES-256-GCM 密钥库                           |
+| 前端     | React 18 + TypeScript + TailwindCSS + Zustand                        |
+| 终端     | xterm.js + PTY 伪终端                                                |
+| LLM      | Claude API（PRD 生成、字段完善、Token 记账）                         |
+| 测试     | Vitest 四层金字塔（组件/契约/混沌/IPC）+ Playwright E2E + cargo test |
 
 ## 开发环境要求
 

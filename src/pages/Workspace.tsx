@@ -4,8 +4,17 @@ import { motion } from "framer-motion";
 import { format, formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import {
-  FileText, Columns, CheckCircle, AlertCircle, ArrowRight,
-  Plus, MessageSquare, GitBranch, FolderOpen, Rocket, Activity,
+  FileText,
+  Columns,
+  CheckCircle,
+  AlertCircle,
+  ArrowRight,
+  Plus,
+  MessageSquare,
+  GitBranch,
+  FolderOpen,
+  Rocket,
+  Activity,
 } from "lucide-react";
 import { useRequirementsStore, useTasksStore } from "../stores";
 import { listProjects } from "../lib/tauri";
@@ -123,11 +132,7 @@ export default function Workspace() {
 
   async function loadData() {
     try {
-      await Promise.all([
-        fetchRequirements(),
-        fetchTasks(),
-        listProjects().then(setProjects),
-      ]);
+      await Promise.all([fetchRequirements(), fetchTasks(), listProjects().then(setProjects)]);
     } catch (error) {
       console.error("加载工作台数据失败:", error);
     } finally {
@@ -147,8 +152,7 @@ export default function Workspace() {
     blockedTasks: tasks.filter((t) => t.status === "blocked").length,
   };
 
-  const completionRate =
-    stats.totalTasks > 0 ? stats.completedTasks / stats.totalTasks : 0;
+  const completionRate = stats.totalTasks > 0 ? stats.completedTasks / stats.totalTasks : 0;
   const completionPct = Math.round(completionRate * 100);
 
   const blockedList = tasks.filter((t) => t.status === "blocked").slice(0, 3);
@@ -161,10 +165,7 @@ export default function Workspace() {
   ];
 
   const otherRequirements =
-    stats.totalRequirements -
-    stats.draftRequirements -
-    stats.reviewingRequirements -
-    stats.approvedRequirements;
+    stats.totalRequirements - stats.draftRequirements - stats.reviewingRequirements - stats.approvedRequirements;
   const reqSegments = [
     { label: "草稿", count: stats.draftRequirements, color: REQ_STATUS_META[0].color },
     { label: "评审中", count: stats.reviewingRequirements, color: REQ_STATUS_META[1].color },
@@ -203,8 +204,7 @@ export default function Workspace() {
   ];
 
   const hour = new Date().getHours();
-  const greeting =
-    hour < 6 ? "夜深了" : hour < 12 ? "早上好" : hour < 14 ? "中午好" : hour < 18 ? "下午好" : "晚上好";
+  const greeting = hour < 6 ? "夜深了" : hour < 12 ? "早上好" : hour < 14 ? "中午好" : hour < 18 ? "下午好" : "晚上好";
 
   if (loading) {
     return (
@@ -269,7 +269,10 @@ export default function Workspace() {
             gradient={GRADIENT.primary}
             title="进度总览"
             extra={
-              <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "var(--color-primary-subtle)", color: "var(--color-primary)" }}>
+              <span
+                className="text-[11px] px-2 py-0.5 rounded-full"
+                style={{ background: "var(--color-primary-subtle)", color: "var(--color-primary)" }}
+              >
                 实时
               </span>
             }
@@ -313,16 +316,27 @@ export default function Workspace() {
             {/* 核心指标 */}
             <div className="grid grid-cols-2 gap-3 flex-1 w-full">
               {[
-                { label: "需求总数", value: stats.totalRequirements, hint: `${stats.draftRequirements} 草稿 · ${stats.reviewingRequirements} 评审中`, color: "var(--color-text)" },
-                { label: "任务总数", value: stats.totalTasks, hint: `${stats.pendingTasks} 待处理`, color: "var(--color-text)" },
+                {
+                  label: "需求总数",
+                  value: stats.totalRequirements,
+                  hint: `${stats.draftRequirements} 草稿 · ${stats.reviewingRequirements} 评审中`,
+                  color: "var(--color-text)",
+                },
+                {
+                  label: "任务总数",
+                  value: stats.totalTasks,
+                  hint: `${stats.pendingTasks} 待处理`,
+                  color: "var(--color-text)",
+                },
                 { label: "进行中", value: stats.inProgressTasks, hint: "正在推进", color: "#2563eb" },
-                { label: "已完成", value: stats.completedTasks, hint: `已批准需求 ${stats.approvedRequirements}`, color: "#10b981" },
+                {
+                  label: "已完成",
+                  value: stats.completedTasks,
+                  hint: `已批准需求 ${stats.approvedRequirements}`,
+                  color: "#10b981",
+                },
               ].map((m) => (
-                <div
-                  key={m.label}
-                  className="rounded-xl px-3.5 py-3"
-                  style={{ background: "var(--color-bg-subtle)" }}
-                >
+                <div key={m.label} className="rounded-xl px-3.5 py-3" style={{ background: "var(--color-bg-subtle)" }}>
                   <p className="text-[11px]" style={{ color: "var(--color-text-tertiary)" }}>
                     {m.label}
                   </p>
@@ -341,7 +355,10 @@ export default function Workspace() {
         {/* B：任务分布 */}
         <BentoCard delay={0.08} onClick={() => navigate("/board")} title="查看任务看板">
           <CardHead icon={Columns} gradient={GRADIENT.violet} title="任务分布" />
-          <div className="flex h-2.5 rounded-full overflow-hidden mb-4" style={{ background: "var(--color-bg-subtle)" }}>
+          <div
+            className="flex h-2.5 rounded-full overflow-hidden mb-4"
+            style={{ background: "var(--color-bg-subtle)" }}
+          >
             {taskSegments.map((seg) =>
               seg.count > 0 ? (
                 <div
@@ -352,11 +369,9 @@ export default function Workspace() {
                     transition: "width 0.6s ease",
                   }}
                 />
-              ) : null
+              ) : null,
             )}
-            {stats.totalTasks === 0 && (
-              <div className="w-full" style={{ background: "var(--color-bg-subtle)" }} />
-            )}
+            {stats.totalTasks === 0 && <div className="w-full" style={{ background: "var(--color-bg-subtle)" }} />}
           </div>
           <div className="space-y-2.5">
             {taskSegments.map((seg) => (
@@ -451,9 +466,7 @@ export default function Workspace() {
             icon={FolderOpen}
             gradient={GRADIENT.amber}
             title="项目"
-            extra={
-              <ArrowRight className="w-3.5 h-3.5" style={{ color: "var(--color-text-tertiary)" }} />
-            }
+            extra={<ArrowRight className="w-3.5 h-3.5" style={{ color: "var(--color-text-tertiary)" }} />}
           />
           {projects.length === 0 ? (
             <div className="py-6 text-center text-xs" style={{ color: "var(--color-text-tertiary)" }}>
@@ -541,10 +554,7 @@ export default function Workspace() {
                     />
                     <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p
-                          className="text-sm truncate group-hover:underline"
-                          style={{ color: "var(--color-text)" }}
-                        >
+                        <p className="text-sm truncate group-hover:underline" style={{ color: "var(--color-text)" }}>
                           {item.title}
                         </p>
                         <p className="text-[11px]" style={{ color: "var(--color-text-tertiary)" }}>

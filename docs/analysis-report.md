@@ -9,6 +9,7 @@
 ### 严重度: 高
 
 ### 现象
+
 点击"刷新检测"后 Agent 出现，但切换到其他页面再回来，检测到的 Agent 消失，需要重新检测。
 
 ### 根因分析
@@ -18,14 +19,14 @@
 ```typescript
 // 第 19-31 行: loadData() 只调用 getAgents()
 async function loadData() {
-  const savedAgents = await getAgents();   // ← 从数据库读取
+  const savedAgents = await getAgents(); // ← 从数据库读取
   setAgents(savedAgents);
 }
 
 // 第 33-43 行: handleRefresh() 调用 discoverAgents()
 async function handleRefresh() {
   const agentsData = await discoverAgents(); // ← 只在内存中，不保存到数据库
-  setAgents(agentsData);                      // ← 设置到组件 state
+  setAgents(agentsData); // ← 设置到组件 state
 }
 ```
 
@@ -40,6 +41,7 @@ async function handleRefresh() {
 **等等** — 实际上 `discover_agents` 的后端实现是调用 `upsert_agent` 保存的。让我重新检查：
 
 **文件**: `src-tauri/src/services/agent_service.rs`
+
 ```rust
 pub async fn discover_agents(&self) -> Result<Vec<Agent>, String> {
     // ... 检测逻辑 ...
@@ -59,6 +61,7 @@ pub async fn discover_agents(&self) -> Result<Vec<Agent>, String> {
 但如果 `discover_agents` 后端实现**没有正确保存**（比如 upsert 失败），那数据库中就没有记录。
 
 **最终根因总结**:
+
 1. `Agents.tsx` 没有使用 store，用 `useState` 管理状态，页面卸载后状态丢失
 2. `handleRefresh()` 调用 `discoverAgents()` 后只设置内存状态，需确认后端是否正确保存
 3. 进入页面时 `loadData()` 从数据库加载，但如果数据库没有数据就显示空
@@ -104,9 +107,7 @@ addProject: async (name, description, key) => {
 **文件**: `src/lib/tauri.ts` 第 344-350 行
 
 ```typescript
-export async function createProject(
-  name: string, description?: string, key?: string
-): Promise<Project> {
+export async function createProject(name: string, description?: string, key?: string): Promise<Project> {
   return invoke("create_project", { name, description, key });
 }
 ```
@@ -129,6 +130,7 @@ pub async fn create_project(
 **分析**: 代码逻辑看起来是正确的。按钮点击 → handleCreate → addProject → createProject (invoke) → 后端 create_project → 返回。
 
 可能的问题：
+
 1. **验证失败静默** — `validate_project` 失败时错误被 catch 但只 console.error，用户看不到
 2. **Modal overlay 问题** — Modal 的 onClick 覆盖了按钮点击
 3. **后端错误未传播** — 后端返回的错误被 catch 但无 toast 提示
@@ -149,14 +151,22 @@ pub async fn create_project(
 async function handleCreate(data: any) {
   try {
     await createTask(
-      data.title, undefined, data.task_type, data.priority,
-      data.assignee, data.due_date, data.estimated_hours,
-      data.priority_level, data.blocked_reason, data.tags, data.notes
+      data.title,
+      undefined,
+      data.task_type,
+      data.priority,
+      data.assignee,
+      data.due_date,
+      data.estimated_hours,
+      data.priority_level,
+      data.blocked_reason,
+      data.tags,
+      data.notes,
     );
     setShowCreateModal(false);
     await fetchTasks();
   } catch (error) {
-    console.error("创建任务失败:", error);  // ← 无用户反馈
+    console.error("创建任务失败:", error); // ← 无用户反馈
   }
 }
 ```
@@ -178,9 +188,8 @@ async function handleCreate(data: any) {
 **文件**: `src/lib/tauri.ts` 第 55-59 行
 
 ```typescript
-export async function listRequirements(
-  status?: string
-): Promise<Requirement[]> {           // ← 声明返回 Requirement[] (数组)
+export async function listRequirements(status?: string): Promise<Requirement[]> {
+  // ← 声明返回 Requirement[] (数组)
   return invoke("list_requirements", { status });
 }
 ```
@@ -199,17 +208,20 @@ pub async fn list_requirements(
 ```
 
 **后端返回的是 `PagedResult<Requirement>`**，结构为：
+
 ```json
 { "items": [...], "total": 10, "page": 1, "page_size": 20, "total_pages": 1 }
 ```
 
 **但前端声明为 `Requirement[]`**，store 中直接赋值：
+
 ```typescript
 const data = await listRequirements(status);
-set({ requirements: data, loading: false });  // ← data 是对象而非数组！
+set({ requirements: data, loading: false }); // ← data 是对象而非数组！
 ```
 
 **后果**:
+
 - `requirements` 变成了 `{ items: [...], total: ..., page: ... }` 对象
 - `requirements.length` 为 `undefined`
 - `requirements.filter(...)` 抛出运行时错误
@@ -219,10 +231,11 @@ set({ requirements: data, loading: false });  // ← data 是对象而非数组�
 ### 修复方案
 
 **方案 A**（推荐）: 前端适配分页返回格式
+
 ```typescript
 export async function listRequirements(status?: string) {
   const result = await invoke("list_requirements", { status });
-  return result.items;  // ← 提取 items 数组
+  return result.items; // ← 提取 items 数组
 }
 ```
 
@@ -243,12 +256,7 @@ async function handleCreate() {
   if (!formData.name.trim() || !formData.template.trim()) return;
   setSaving(true);
   try {
-    await createPrdSkill(
-      formData.name,
-      formData.skill_type,
-      formData.description || null,
-      formData.template
-    );
+    await createPrdSkill(formData.name, formData.skill_type, formData.description || null, formData.template);
     // ...
   } catch (error) {
     console.error("创建Skill失败:", error);
@@ -261,7 +269,10 @@ async function handleCreate() {
 
 ```typescript
 export async function createPrdSkill(
-  name: string, skillType: string, description: string | null, template: string
+  name: string,
+  skillType: string,
+  description: string | null,
+  template: string,
 ): Promise<PrdSkill> {
   return invoke("create_prd_skill", { name, skillType, description, template });
 }
@@ -292,6 +303,7 @@ conn.execute(
 ```
 
 **可能的问题**:
+
 1. 数据库表 `prd_skills` 可能缺少新字段（version, parent_id, is_deleted）— 需要检查 migration
 2. SkillManagement 页面使用的是旧版 `PrdSkill` 类型（没有 version/parent_id/is_deleted 字段）
 
@@ -301,13 +313,13 @@ conn.execute(
 
 ## 问题汇总
 
-| # | 问题 | 严重度 | 根因 | 修复难度 |
-|---|------|--------|------|----------|
-| 1 | Agent 检测后消失 | 高 | `useState` 状态不持久化 + `handleRefresh` 不刷新数据库 | 中 |
-| 2 | 项目创建按钮失效 | 高 | 错误静默 + 可能的验证失败 | 低 |
-| 3 | 任务创建按钮失效 | 高 | 错误静默 + 可能的验证失败 | 低 |
-| 4 | 需求创建按钮失效 | **严重** | `listRequirements` 返回类型 `PagedResult` vs 前端期望 `Requirement[]` | **高** |
-| 5 | Skill 创建失败 | 高 | 可能是数据库 migration 缺少新字段 | 中 |
+| #   | 问题             | 严重度   | 根因                                                                  | 修复难度 |
+| --- | ---------------- | -------- | --------------------------------------------------------------------- | -------- |
+| 1   | Agent 检测后消失 | 高       | `useState` 状态不持久化 + `handleRefresh` 不刷新数据库                | 中       |
+| 2   | 项目创建按钮失效 | 高       | 错误静默 + 可能的验证失败                                             | 低       |
+| 3   | 任务创建按钮失效 | 高       | 错误静默 + 可能的验证失败                                             | 低       |
+| 4   | 需求创建按钮失效 | **严重** | `listRequirements` 返回类型 `PagedResult` vs 前端期望 `Requirement[]` | **高**   |
+| 5   | Skill 创建失败   | 高       | 可能是数据库 migration 缺少新字段                                     | 中       |
 
 ---
 

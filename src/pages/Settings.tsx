@@ -20,7 +20,9 @@ export default function Settings() {
   const [prdMode, setPrdMode] = useState("api");
   const [defaultAgent, setDefaultAgent] = useState("");
   const [allowedTools, setAllowedTools] = useState("");
-  const [agentsList, setAgentsList] = useState<{ id: string; display_name: string; binary_path: string; status: string }[]>([]);
+  const [agentsList, setAgentsList] = useState<
+    { id: string; display_name: string; binary_path: string; status: string }[]
+  >([]);
 
   useEffect(() => {
     loadSettings();
@@ -28,7 +30,17 @@ export default function Settings() {
 
   async function loadSettings() {
     try {
-      const keys = ["claude_api_key", "project_name", "project_path", "commit_template", "auto_commit", "session_mode", "prd_generation_mode", "default_agent_path", "session_allowed_tools"];
+      const keys = [
+        "claude_api_key",
+        "project_name",
+        "project_path",
+        "commit_template",
+        "auto_commit",
+        "session_mode",
+        "prd_generation_mode",
+        "default_agent_path",
+        "session_allowed_tools",
+      ];
       await fetchSettings(keys);
 
       // Read fresh values from the store after batch fetch
@@ -95,7 +107,10 @@ export default function Settings() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center gap-3 text-sm" style={{ color: "var(--color-text-tertiary)" }}>
-          <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "var(--color-border)", borderTopColor: "var(--color-primary)" }} />
+          <div
+            className="w-4 h-4 border-2 rounded-full animate-spin"
+            style={{ borderColor: "var(--color-border)", borderTopColor: "var(--color-primary)" }}
+          />
           加载中...
         </div>
       </div>
@@ -107,8 +122,12 @@ export default function Settings() {
       {/* 页面标题 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>系统设置</h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>配置平台参数和集成</p>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>
+            系统设置
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+            配置平台参数和集成
+          </p>
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary">
           <Save className="w-4 h-4" />
@@ -126,11 +145,7 @@ export default function Settings() {
         </div>
         <div>
           <label className="label">PRD 生成方式</label>
-          <select
-            value={prdMode}
-            onChange={(e) => setPrdMode(e.target.value)}
-            className="select"
-          >
+          <select value={prdMode} onChange={(e) => setPrdMode(e.target.value)} className="select">
             <option value="api">API 接入 - 调用 Anthropic API（需配置下方 API Key）</option>
             <option value="agent">Claude CLI - 使用本机 Claude 命令行登录态（无需 API Key）</option>
           </select>
@@ -148,7 +163,9 @@ export default function Settings() {
             placeholder="sk-ant-..."
             className="input"
           />
-          <p className="text-xs mt-1.5" style={{ color: "var(--color-text-tertiary)" }}>用于调用 Claude API 生成 PRD 文档（生成方式为 API 接入时必填）</p>
+          <p className="text-xs mt-1.5" style={{ color: "var(--color-text-tertiary)" }}>
+            用于调用 Claude API 生成 PRD 文档（生成方式为 API 接入时必填）
+          </p>
         </div>
       </div>
 
@@ -162,24 +179,18 @@ export default function Settings() {
         </div>
         <div>
           <label className="label">会话模式</label>
-          <select
-            value={sessionMode}
-            onChange={(e) => setSessionMode(e.target.value)}
-            className="select"
-          >
+          <select value={sessionMode} onChange={(e) => setSessionMode(e.target.value)} className="select">
             <option value="auto">自动模式 - 任务状态变更时自动创建会话</option>
             <option value="manual">手动模式 - 需要手动创建会话</option>
           </select>
-          <p className="text-xs mt-1.5" style={{ color: "var(--color-text-tertiary)" }}>自动模式下，任务进入"开发中"状态时将自动创建 Agent 会话</p>
+          <p className="text-xs mt-1.5" style={{ color: "var(--color-text-tertiary)" }}>
+            自动模式下，任务进入"开发中"状态时将自动创建 Agent 会话
+          </p>
         </div>
 
         <div>
           <label className="label">默认 Agent</label>
-          <select
-            value={defaultAgent}
-            onChange={(e) => setDefaultAgent(e.target.value)}
-            className="select"
-          >
+          <select value={defaultAgent} onChange={(e) => setDefaultAgent(e.target.value)} className="select">
             <option value="">自动选择 - 使用第一个可用的 Agent</option>
             {agentsList.map((a) => (
               <option key={a.id} value={a.binary_path}>
@@ -187,7 +198,9 @@ export default function Settings() {
               </option>
             ))}
           </select>
-          <p className="text-xs mt-1.5" style={{ color: "var(--color-text-tertiary)" }}>任务触发会话与 PRD 的 CLI 通道将优先使用此 Agent（MA-09）</p>
+          <p className="text-xs mt-1.5" style={{ color: "var(--color-text-tertiary)" }}>
+            任务触发会话与 PRD 的 CLI 通道将优先使用此 Agent（MA-09）
+          </p>
         </div>
 
         <div>
@@ -216,12 +229,7 @@ export default function Settings() {
         <div className="space-y-4">
           <div>
             <label className="label">项目名称</label>
-            <input
-              type="text"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              className="input"
-            />
+            <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="input" />
           </div>
           <div>
             <label className="label">项目路径</label>
@@ -247,11 +255,7 @@ export default function Settings() {
         <div className="space-y-4">
           <div>
             <label className="label">自动提交模式</label>
-            <select
-              value={autoCommit}
-              onChange={(e) => setAutoCommit(e.target.value)}
-              className="select"
-            >
+            <select value={autoCommit} onChange={(e) => setAutoCommit(e.target.value)} className="select">
               <option value="auto">自动提交</option>
               <option value="semi-auto">半自动（需确认）</option>
               <option value="manual">手动提交</option>
@@ -296,16 +300,24 @@ export default function Settings() {
                   className="flex items-center justify-between p-3 cursor-pointer transition-colors"
                   style={{ transition: "background var(--transition-fast)" }}
                   onClick={() => setExpandedSkill(expandedSkill === skill.id ? null : skill.id)}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-subtle)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = ""}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-primary-subtle)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "")}
                 >
                   <div className="flex items-center gap-2.5">
-                    <span className="px-2 py-0.5 text-xs font-medium rounded" style={{ background: "var(--color-primary-subtle)", color: "var(--color-primary)" }}>
+                    <span
+                      className="px-2 py-0.5 text-xs font-medium rounded"
+                      style={{ background: "var(--color-primary-subtle)", color: "var(--color-primary)" }}
+                    >
                       {skill.skill_type}
                     </span>
-                    <span className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{skill.name}</span>
+                    <span className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
+                      {skill.name}
+                    </span>
                     {skill.is_builtin && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-medium rounded" style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-tertiary)" }}>
+                      <span
+                        className="px-1.5 py-0.5 text-[10px] font-medium rounded"
+                        style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-tertiary)" }}
+                      >
                         内置
                       </span>
                     )}
@@ -318,8 +330,13 @@ export default function Settings() {
                 </div>
                 {expandedSkill === skill.id && (
                   <div className="px-3 pb-3 pt-0" style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
-                    <p className="text-sm mt-3 mb-2" style={{ color: "var(--color-text-secondary)" }}>{skill.description}</p>
-                    <pre className="text-xs p-3 rounded-lg overflow-auto max-h-40 font-mono" style={{ color: "var(--color-text-tertiary)", background: "var(--color-bg-subtle)" }}>
+                    <p className="text-sm mt-3 mb-2" style={{ color: "var(--color-text-secondary)" }}>
+                      {skill.description}
+                    </p>
+                    <pre
+                      className="text-xs p-3 rounded-lg overflow-auto max-h-40 font-mono"
+                      style={{ color: "var(--color-text-tertiary)", background: "var(--color-bg-subtle)" }}
+                    >
                       {skill.template}
                     </pre>
                   </div>

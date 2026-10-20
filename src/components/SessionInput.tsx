@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
-import { Send, Square, Paperclip, X, Loader2 } from 'lucide-react';
-import { saveSessionAttachment } from '../lib/tauri';
-import { showToast } from './Toast';
+import { useRef, useState } from "react";
+import { Send, Square, Paperclip, X, Loader2 } from "lucide-react";
+import { saveSessionAttachment } from "../lib/tauri";
+import { showToast } from "./Toast";
 
 interface PendingAttachment {
   name: string;
@@ -51,7 +51,7 @@ export default function SessionInput({
   onInterrupt,
   readOnlyHint,
 }: SessionInputProps) {
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState("");
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [attaching, setAttaching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,7 +60,7 @@ export default function SessionInput({
     return (
       <div
         className="px-4 py-2.5 text-xs"
-        style={{ borderTop: '1px solid var(--color-border-subtle)', color: 'var(--color-text-tertiary)' }}
+        style={{ borderTop: "1px solid var(--color-border-subtle)", color: "var(--color-text-tertiary)" }}
       >
         {readOnlyHint}
       </div>
@@ -74,23 +74,20 @@ export default function SessionInput({
     try {
       for (const file of files) {
         if (file.size > MAX_ATTACHMENT_SIZE) {
-          showToast('error', `${file.name} 超过 20MB，未添加`);
+          showToast("error", `${file.name} 超过 20MB，未添加`);
           continue;
         }
         const bytes = await readFileBytes(file);
         const saved = await saveSessionAttachment(sessionId ?? null, file.name, Array.from(bytes));
         const previewUrl =
-          file.type.startsWith('image/') && typeof URL.createObjectURL === 'function'
+          file.type.startsWith("image/") && typeof URL.createObjectURL === "function"
             ? URL.createObjectURL(file)
             : undefined;
         setAttachments((prev) => [...prev, { ...saved, previewUrl }]);
       }
     } catch (error) {
-      console.error('附件导入失败:', error);
-      showToast(
-        'error',
-        '附件导入失败: ' + (error instanceof Error ? error.message : String(error))
-      );
+      console.error("附件导入失败:", error);
+      showToast("error", "附件导入失败: " + (error instanceof Error ? error.message : String(error)));
     } finally {
       setAttaching(false);
     }
@@ -110,7 +107,7 @@ export default function SessionInput({
     if (!items) return;
     const files: File[] = [];
     for (let i = 0; i < items.length; i++) {
-      if (items[i].kind === 'file') {
+      if (items[i].kind === "file") {
         const file = items[i].getAsFile();
         if (file) files.push(file);
       }
@@ -128,10 +125,10 @@ export default function SessionInput({
 
     let content = text;
     if (attachments.length > 0) {
-      const list = attachments.map((a) => `  - ${a.path}`).join('\n');
-      content = `${text ? text + '\n\n' : ''}📎 附件已保存到本地，请读取并识别以下文件：\n${list}`;
+      const list = attachments.map((a) => `  - ${a.path}`).join("\n");
+      content = `${text ? text + "\n\n" : ""}📎 附件已保存到本地，请读取并识别以下文件：\n${list}`;
     }
-    setValue('');
+    setValue("");
     attachments.forEach((a) => {
       if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
     });
@@ -142,10 +139,7 @@ export default function SessionInput({
   const canSend = running && !sending && (value.trim().length > 0 || attachments.length > 0);
 
   return (
-    <div
-      className="px-3 py-2.5 space-y-2"
-      style={{ borderTop: '1px solid var(--color-border-subtle)' }}
-    >
+    <div className="px-3 py-2.5 space-y-2" style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
       {/* 附件预览 */}
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -154,9 +148,9 @@ export default function SessionInput({
               key={att.path}
               className="inline-flex items-center gap-1.5 pl-1.5 pr-1 py-1 rounded-lg text-[11px] max-w-[220px]"
               style={{
-                background: 'var(--color-bg-subtle)',
-                color: 'var(--color-text-secondary)',
-                border: '1px solid var(--color-border-subtle)',
+                background: "var(--color-bg-subtle)",
+                color: "var(--color-text-secondary)",
+                border: "1px solid var(--color-border-subtle)",
               }}
             >
               {att.previewUrl ? (
@@ -184,14 +178,14 @@ export default function SessionInput({
           onChange={(e) => setValue(e.target.value)}
           onPaste={handlePaste}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               submit();
             }
           }}
           rows={2}
           disabled={!running}
-          placeholder={running ? '输入指令，Enter 发送 / Shift+Enter 换行…' : '会话已结束，请重建或续接会话'}
+          placeholder={running ? "输入指令，Enter 发送 / Shift+Enter 换行…" : "会话已结束，请重建或续接会话"}
           className="input flex-1 resize-none text-sm"
           style={{ minHeight: 44 }}
         />
@@ -204,11 +198,7 @@ export default function SessionInput({
             disabled={!running || attaching}
             className="btn-secondary text-xs px-2 py-1.5 flex items-center justify-center"
           >
-            {attaching ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Paperclip className="w-3.5 h-3.5" />
-            )}
+            {attaching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Paperclip className="w-3.5 h-3.5" />}
           </button>
           <button
             type="button"
@@ -227,7 +217,7 @@ export default function SessionInput({
             className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5"
           >
             <Send className="w-3.5 h-3.5" />
-            {sending ? '发送中' : '发送'}
+            {sending ? "发送中" : "发送"}
           </button>
         </div>
       </div>
@@ -240,12 +230,12 @@ export default function SessionInput({
         accept="image/*,.pdf,.md,.txt,.csv,.json,.doc,.docx,.xls,.xlsx,.zip"
         onChange={(e) => {
           const files = Array.from(e.target.files ?? []);
-          e.target.value = '';
+          e.target.value = "";
           addFiles(files);
         }}
       />
 
-      <p className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
+      <p className="text-[11px]" style={{ color: "var(--color-text-tertiary)" }}>
         提示：Ctrl+V 可直接粘贴图片，回形针可导入附件（随消息交给 Agent 读取识别）；
         工具被权限策略拒绝时，可在消息卡片中「始终允许并重试」。
       </p>

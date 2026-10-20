@@ -15,13 +15,13 @@
  * 需通过 `npm run test:l4` 显式运行。
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { chromium, type Browser, type Page } from 'playwright-core';
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { chromium, type Browser, type Page } from "playwright-core";
 
 const CDP_PORT = process.env.TAURI_DEVTOOLS_SERVER_PORT;
-const CDP_ENDPOINT = CDP_PORT ? `http://127.0.0.1:${CDP_PORT}` : '';
+const CDP_ENDPOINT = CDP_PORT ? `http://127.0.0.1:${CDP_PORT}` : "";
 
-describe.skipIf(!CDP_PORT)('L4 CDP: WebView2 真实运行验证', () => {
+describe.skipIf(!CDP_PORT)("L4 CDP: WebView2 真实运行验证", () => {
   let browser: Browser;
   let page: Page;
 
@@ -36,39 +36,37 @@ describe.skipIf(!CDP_PORT)('L4 CDP: WebView2 真实运行验证', () => {
     await browser?.close();
   });
 
-  it('L4-001: 控制台无 error 级日志', async () => {
+  it("L4-001: 控制台无 error 级日志", async () => {
     const errors: string[] = [];
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') errors.push(msg.text());
+    page.on("console", (msg) => {
+      if (msg.type() === "error") errors.push(msg.text());
     });
-    page.on('pageerror', (err) => errors.push(String(err)));
+    page.on("pageerror", (err) => errors.push(String(err)));
 
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1500);
 
-    expect(errors, `控制台错误:\n${errors.join('\n')}`).toHaveLength(0);
+    expect(errors, `控制台错误:\n${errors.join("\n")}`).toHaveLength(0);
   });
 
-  it('L4-002: 主文档与静态资源请求均无 4xx/5xx', async () => {
+  it("L4-002: 主文档与静态资源请求均无 4xx/5xx", async () => {
     const failed: string[] = [];
-    page.on('response', (res) => {
+    page.on("response", (res) => {
       if (res.status() >= 400) failed.push(`${res.status()} ${res.url()}`);
     });
 
-    await page.reload({ waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: "networkidle" });
 
-    expect(failed, `失败请求:\n${failed.join('\n')}`).toHaveLength(0);
+    expect(failed, `失败请求:\n${failed.join("\n")}`).toHaveLength(0);
   });
 
-  it('L4-003: 关键性能指标已产出', async () => {
+  it("L4-003: 关键性能指标已产出", async () => {
     const metrics = await page.evaluate(() => {
-      const nav = performance.getEntriesByType('navigation')[0] as
-        | PerformanceNavigationTiming
-        | undefined;
+      const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
       return {
         domContentLoaded: nav?.domContentLoadedEventEnd ?? 0,
         loadComplete: nav?.loadEventEnd ?? 0,
-        resourceCount: performance.getEntriesByType('resource').length,
+        resourceCount: performance.getEntriesByType("resource").length,
       };
     });
 
@@ -77,12 +75,11 @@ describe.skipIf(!CDP_PORT)('L4 CDP: WebView2 真实运行验证', () => {
     expect(metrics.resourceCount).toBeGreaterThan(0);
   });
 
-  it('L4-004: 可拦截并统计 Tauri IPC 调用', async () => {
+  it("L4-004: 可拦截并统计 Tauri IPC 调用", async () => {
     const intercepted = await page.evaluate(async () => {
       // 通过包装 __TAURI_INTERNALS__.invoke 统计真实 IPC 调用
-      const internals = (window as unknown as { __TAURI_INTERNALS__?: { invoke: unknown } })
-        .__TAURI_INTERNALS__;
-      if (!internals || typeof internals.invoke !== 'function') return null;
+      const internals = (window as unknown as { __TAURI_INTERNALS__?: { invoke: unknown } }).__TAURI_INTERNALS__;
+      if (!internals || typeof internals.invoke !== "function") return null;
 
       const calls: string[] = [];
       const original = internals.invoke as (cmd: string, args?: unknown) => Promise<unknown>;
@@ -92,7 +89,7 @@ describe.skipIf(!CDP_PORT)('L4 CDP: WebView2 真实运行验证', () => {
       };
 
       // 触发一次必然发生的 IPC（导航会触发统计/监控拉取）
-      window.location.hash = '#/statistics';
+      window.location.hash = "#/statistics";
       await new Promise((resolve) => setTimeout(resolve, 1200));
 
       internals.invoke = original;
@@ -101,25 +98,24 @@ describe.skipIf(!CDP_PORT)('L4 CDP: WebView2 真实运行验证', () => {
 
     if (intercepted === null) {
       // 未暴露 __TAURI_INTERNALS__ 说明当前不是 Tauri 运行时
-      throw new Error('未检测到 Tauri 运行时：请通过 `npm run tauri dev` 启动应用后再运行 L4');
+      throw new Error("未检测到 Tauri 运行时：请通过 `npm run tauri dev` 启动应用后再运行 L4");
     }
     expect(intercepted.length).toBeGreaterThan(0);
   });
 
-  it('L4-005: IPC 往返耗时可测量（< 2000ms）', async () => {
+  it("L4-005: IPC 往返耗时可测量（< 2000ms）", async () => {
     const cost = await page.evaluate(async () => {
-      const internals = (window as unknown as { __TAURI_INTERNALS__?: { invoke: unknown } })
-        .__TAURI_INTERNALS__;
-      if (!internals || typeof internals.invoke !== 'function') return null;
+      const internals = (window as unknown as { __TAURI_INTERNALS__?: { invoke: unknown } }).__TAURI_INTERNALS__;
+      if (!internals || typeof internals.invoke !== "function") return null;
 
       const invoke = internals.invoke as (cmd: string, args?: unknown) => Promise<unknown>;
       const started = performance.now();
-      await invoke('get_statistics', {});
+      await invoke("get_statistics", {});
       return performance.now() - started;
     });
 
     if (cost === null) {
-      throw new Error('未检测到 Tauri 运行时：请通过 `npm run tauri dev` 启动应用后再运行 L4');
+      throw new Error("未检测到 Tauri 运行时：请通过 `npm run tauri dev` 启动应用后再运行 L4");
     }
     expect(cost).toBeLessThan(2000);
   });

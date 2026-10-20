@@ -1,22 +1,22 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import { WebLinksAddon } from '@xterm/addon-web-links';
-import { listen } from '@tauri-apps/api/event';
-import { ptyWrite, ptyResize, ptyKill, ptyAttach, ptyReconnect, saveSessionAttachment } from '../lib/tauri';
-import { X, Square, Maximize2, Minimize2, Search, Download, Paperclip } from 'lucide-react';
-import '@xterm/xterm/css/xterm.css';
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import { WebLinksAddon } from "@xterm/addon-web-links";
+import { listen } from "@tauri-apps/api/event";
+import { ptyWrite, ptyResize, ptyKill, ptyAttach, ptyReconnect, saveSessionAttachment } from "../lib/tauri";
+import { X, Square, Maximize2, Minimize2, Search, Download, Paperclip } from "lucide-react";
+import "@xterm/xterm/css/xterm.css";
 
 interface AgentTerminalProps {
   sessionId: string;
   agentName: string;
   taskTitle?: string;
   onClose?: () => void;
-  onStatusChange?: (status: 'running' | 'completed' | 'failed') => void;
+  onStatusChange?: (status: "running" | "completed" | "failed") => void;
 }
 
 interface PtyEvent {
-  type: 'data' | 'exit' | 'error';
+  type: "data" | "exit" | "error";
   session_id: string;
   data?: string;
   exit_code?: number;
@@ -36,7 +36,7 @@ export default function AgentTerminal({
   const [isRunning, setIsRunning] = useState(true);
   const [isMaximized, setIsMaximized] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState("");
   const [outputLog, setOutputLog] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   /**
@@ -56,27 +56,27 @@ export default function AgentTerminal({
 
     const terminal = new Terminal({
       theme: {
-        background: '#1e1e2e',
-        foreground: '#cdd6f4',
-        cursor: '#f5e0dc',
-        cursorAccent: '#1e1e2e',
-        selectionBackground: '#585b70',
-        black: '#45475a',
-        red: '#f38ba8',
-        green: '#a6e3a1',
-        yellow: '#f9e2af',
-        blue: '#89b4fa',
-        magenta: '#f5c2e7',
-        cyan: '#94e2d5',
-        white: '#bac2de',
-        brightBlack: '#585b70',
-        brightRed: '#f38ba8',
-        brightGreen: '#a6e3a1',
-        brightYellow: '#f9e2af',
-        brightBlue: '#89b4fa',
-        brightMagenta: '#f5c2e7',
-        brightCyan: '#94e2d5',
-        brightWhite: '#a6adc8',
+        background: "#1e1e2e",
+        foreground: "#cdd6f4",
+        cursor: "#f5e0dc",
+        cursorAccent: "#1e1e2e",
+        selectionBackground: "#585b70",
+        black: "#45475a",
+        red: "#f38ba8",
+        green: "#a6e3a1",
+        yellow: "#f9e2af",
+        blue: "#89b4fa",
+        magenta: "#f5c2e7",
+        cyan: "#94e2d5",
+        white: "#bac2de",
+        brightBlack: "#585b70",
+        brightRed: "#f38ba8",
+        brightGreen: "#a6e3a1",
+        brightYellow: "#f9e2af",
+        brightBlue: "#89b4fa",
+        brightMagenta: "#f5c2e7",
+        brightCyan: "#94e2d5",
+        brightWhite: "#a6adc8",
       },
       fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
       fontSize: 14,
@@ -103,31 +103,29 @@ export default function AgentTerminal({
     const handleResize = () => {
       fitAddon.fit();
     };
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     let disposed = false;
 
-    const unlisten = listen<PtyEvent>('pty:event', (event) => {
+    const unlisten = listen<PtyEvent>("pty:event", (event) => {
       const id = ptyIdRef.current;
       if (!id || event.payload.session_id !== id) return;
 
       switch (event.payload.type) {
-        case 'data':
+        case "data":
           if (event.payload.data) {
             terminal.write(event.payload.data);
             setOutputLog((prev) => [...prev, event.payload.data!]);
           }
           break;
-        case 'exit':
+        case "exit":
           ptyIdRef.current = null;
           setPtyId(null);
           setIsRunning(false);
-          onStatusRef.current?.(event.payload.exit_code === 0 ? 'completed' : 'failed');
-          terminal.write(
-            `\r\n\x1b[33m[Agent exited with code ${event.payload.exit_code}]\x1b[0m\r\n`
-          );
+          onStatusRef.current?.(event.payload.exit_code === 0 ? "completed" : "failed");
+          terminal.write(`\r\n\x1b[33m[Agent exited with code ${event.payload.exit_code}]\x1b[0m\r\n`);
           break;
-        case 'error':
+        case "error":
           terminal.write(`\r\n\x1b[31m[Error: ${event.payload.error}]\x1b[0m\r\n`);
           break;
       }
@@ -137,7 +135,7 @@ export default function AgentTerminal({
       const id = ptyIdRef.current;
       if (!id) return;
       ptyWrite(id, data).catch((err) => {
-        console.error('Failed to write to PTY:', err);
+        console.error("Failed to write to PTY:", err);
       });
     });
 
@@ -145,7 +143,7 @@ export default function AgentTerminal({
       const id = ptyIdRef.current;
       if (!id) return;
       ptyResize(id, rows, cols).catch((err) => {
-        console.error('Failed to resize PTY:', err);
+        console.error("Failed to resize PTY:", err);
       });
     });
 
@@ -180,7 +178,7 @@ export default function AgentTerminal({
       ptyIdRef.current = null;
       setPtyId(null);
       setAttached(false);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
       unlisten.then((fn) => fn());
       terminal.dispose();
     };
@@ -188,7 +186,7 @@ export default function AgentTerminal({
 
   const handleSearch = useCallback(() => {
     if (!xtermRef.current || !searchText) return;
-    console.log('Search:', searchText);
+    console.log("Search:", searchText);
   }, [searchText]);
 
   const handleStop = async () => {
@@ -199,9 +197,9 @@ export default function AgentTerminal({
       ptyIdRef.current = null;
       setPtyId(null);
       setIsRunning(false);
-      onStatusChange?.('failed');
+      onStatusChange?.("failed");
     } catch (err) {
-      console.error('Failed to stop Agent:', err);
+      console.error("Failed to stop Agent:", err);
     }
   };
 
@@ -212,7 +210,7 @@ export default function AgentTerminal({
       ptyIdRef.current = id;
       setPtyId(id);
       setIsRunning(true);
-      xtermRef.current?.write('\r\n\x1b[36m[Agent 进程已重启]\x1b[0m\r\n');
+      xtermRef.current?.write("\r\n\x1b[36m[Agent 进程已重启]\x1b[0m\r\n");
       try {
         fitAddonRef.current?.fit();
       } catch {
@@ -225,10 +223,10 @@ export default function AgentTerminal({
   };
 
   const handleExportLog = () => {
-    const logContent = outputLog.join('\n');
-    const blob = new Blob([logContent], { type: 'text/plain' });
+    const logContent = outputLog.join("\n");
+    const blob = new Blob([logContent], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `agent-log-${sessionId.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.log`;
     document.body.appendChild(a);
@@ -252,9 +250,7 @@ export default function AgentTerminal({
           reader.readAsArrayBuffer(file);
         });
         const saved = await saveSessionAttachment(sessionId, file.name, Array.from(bytes));
-        xtermRef.current?.write(
-          `\r\n\x1b[36m[附件已保存: ${saved.name}，路径已插入输入行]\x1b[0m\r\n`
-        );
+        xtermRef.current?.write(`\r\n\x1b[36m[附件已保存: ${saved.name}，路径已插入输入行]\x1b[0m\r\n`);
         const id = ptyIdRef.current;
         if (id) await ptyWrite(id, `"${saved.path}"`);
         else xtermRef.current?.write(`\r\n\x1b[31m[进程未运行，路径未插入]\x1b[0m\r\n`);
@@ -262,7 +258,7 @@ export default function AgentTerminal({
         xtermRef.current?.write(`\r\n\x1b[31m[附件导入失败: ${err}]\x1b[0m\r\n`);
       }
     },
-    [sessionId]
+    [sessionId],
   );
 
   /** 粘贴图片 → 保存附件并插入路径；文本粘贴仍交由 xterm 默认处理 */
@@ -270,9 +266,9 @@ export default function AgentTerminal({
     const items = e.clipboardData?.items;
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
-      if (items[i].kind !== 'file') continue;
+      if (items[i].kind !== "file") continue;
       const file = items[i].getAsFile();
-      if (file && file.type.startsWith('image/')) {
+      if (file && file.type.startsWith("image/")) {
         e.preventDefault();
         uploadAndInsert(file);
         return;
@@ -280,33 +276,38 @@ export default function AgentTerminal({
     }
   }
 
-  const termBg = '#1e1e2e';
-  const termHeaderBg = '#313244';
-  const termBorder = '#45475a';
-  const termFg = '#cdd6f4';
-  const termMuted = '#6c7086';
+  const termBg = "#1e1e2e";
+  const termHeaderBg = "#313244";
+  const termBorder = "#45475a";
+  const termFg = "#cdd6f4";
+  const termMuted = "#6c7086";
 
   return (
     <div
-      className={`flex flex-col rounded-lg overflow-hidden ${
-        isMaximized ? 'fixed inset-0 z-50' : 'h-full'
-      }`}
+      className={`flex flex-col rounded-lg overflow-hidden ${isMaximized ? "fixed inset-0 z-50" : "h-full"}`}
       style={{ background: termBg }}
       onPaste={handlePaste}
     >
       {/* 头部栏 */}
-      <div className="flex items-center justify-between px-4 py-2" style={{ background: termHeaderBg, borderBottom: `1px solid ${termBorder}` }}>
+      <div
+        className="flex items-center justify-between px-4 py-2"
+        style={{ background: termHeaderBg, borderBottom: `1px solid ${termBorder}` }}
+      >
         <div className="flex items-center gap-3">
           <div
             className="w-2 h-2 rounded-full"
             style={{
-              background: isRunning ? '#a6e3a1' : '#585b70',
-              animation: isRunning ? 'pulse 2s infinite' : 'none',
+              background: isRunning ? "#a6e3a1" : "#585b70",
+              animation: isRunning ? "pulse 2s infinite" : "none",
             }}
           />
-          <span className="text-sm font-medium" style={{ color: termFg }}>{agentName}</span>
+          <span className="text-sm font-medium" style={{ color: termFg }}>
+            {agentName}
+          </span>
           {taskTitle && (
-            <span className="text-xs" style={{ color: termMuted }}>任务: {taskTitle}</span>
+            <span className="text-xs" style={{ color: termMuted }}>
+              任务: {taskTitle}
+            </span>
           )}
           <span className="text-xs" style={{ color: termMuted }}>
             会话: {sessionId.slice(0, 8)}
@@ -320,14 +321,14 @@ export default function AgentTerminal({
                 type="text"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 placeholder="搜索..."
                 className="px-2 py-1 text-xs rounded"
                 style={{
                   background: termBorder,
                   color: termFg,
                   border: `1px solid #585b70`,
-                  outline: 'none',
+                  outline: "none",
                 }}
                 autoFocus
               />
@@ -335,8 +336,8 @@ export default function AgentTerminal({
                 onClick={() => setShowSearch(false)}
                 className="p-1 rounded"
                 style={{ color: termMuted }}
-                onMouseEnter={(e) => e.currentTarget.style.background = termBorder}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                onMouseEnter={(e) => (e.currentTarget.style.background = termBorder)}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
                 <X className="w-3 h-3" />
               </button>
@@ -351,7 +352,7 @@ export default function AgentTerminal({
             accept="image/*,.pdf,.md,.txt,.csv,.json,.doc,.docx,.xls,.xlsx,.zip"
             onChange={(e) => {
               const files = Array.from(e.target.files ?? []);
-              e.target.value = '';
+              e.target.value = "";
               files.forEach((f) => uploadAndInsert(f));
             }}
           />
@@ -361,8 +362,10 @@ export default function AgentTerminal({
             disabled={!isRunning}
             className="p-1.5 rounded transition-colors disabled:opacity-40"
             style={{ color: termMuted }}
-            onMouseEnter={(e) => { if (isRunning) e.currentTarget.style.background = termBorder; }}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            onMouseEnter={(e) => {
+              if (isRunning) e.currentTarget.style.background = termBorder;
+            }}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             title="添加附件（可直接 Ctrl+V 粘贴图片）"
           >
             <Paperclip className="w-4 h-4" />
@@ -372,8 +375,8 @@ export default function AgentTerminal({
             onClick={() => setShowSearch(!showSearch)}
             className="p-1.5 rounded transition-colors"
             style={{ color: termMuted }}
-            onMouseEnter={(e) => e.currentTarget.style.background = termBorder}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            onMouseEnter={(e) => (e.currentTarget.style.background = termBorder)}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             title="搜索"
           >
             <Search className="w-4 h-4" />
@@ -383,8 +386,8 @@ export default function AgentTerminal({
             onClick={handleExportLog}
             className="p-1.5 rounded transition-colors"
             style={{ color: termMuted }}
-            onMouseEnter={(e) => e.currentTarget.style.background = termBorder}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            onMouseEnter={(e) => (e.currentTarget.style.background = termBorder)}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             title="导出日志"
           >
             <Download className="w-4 h-4" />
@@ -394,24 +397,20 @@ export default function AgentTerminal({
             onClick={() => setIsMaximized(!isMaximized)}
             className="p-1.5 rounded transition-colors"
             style={{ color: termMuted }}
-            onMouseEnter={(e) => e.currentTarget.style.background = termBorder}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-            title={isMaximized ? '还原' : '最大化'}
+            onMouseEnter={(e) => (e.currentTarget.style.background = termBorder)}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            title={isMaximized ? "还原" : "最大化"}
           >
-            {isMaximized ? (
-              <Minimize2 className="w-4 h-4" />
-            ) : (
-              <Maximize2 className="w-4 h-4" />
-            )}
+            {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
           {isRunning && (
             <button
               onClick={handleStop}
               className="p-1.5 rounded transition-colors"
-              style={{ color: '#f38ba8' }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(243, 139, 168, 0.15)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              style={{ color: "#f38ba8" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(243, 139, 168, 0.15)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               title="停止"
             >
               <Square className="w-4 h-4" />
@@ -423,8 +422,8 @@ export default function AgentTerminal({
               onClick={onClose}
               className="p-1.5 rounded transition-colors"
               style={{ color: termMuted }}
-              onMouseEnter={(e) => e.currentTarget.style.background = termBorder}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              onMouseEnter={(e) => (e.currentTarget.style.background = termBorder)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               title="关闭"
             >
               <X className="w-4 h-4" />
@@ -439,7 +438,7 @@ export default function AgentTerminal({
         {(!attached || !ptyId) && (
           <div
             className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6"
-            style={{ background: 'rgba(30, 30, 46, 0.92)' }}
+            style={{ background: "rgba(30, 30, 46, 0.92)" }}
           >
             {!attached ? (
               <p className="text-sm" style={{ color: termMuted }}>
@@ -453,11 +452,7 @@ export default function AgentTerminal({
                 <p className="text-xs" style={{ color: termMuted }}>
                   进程随应用退出而结束，重启后可继续在本窗口交互
                 </p>
-                <button
-                  type="button"
-                  className="btn-primary text-xs px-3 py-1.5"
-                  onClick={handleRestart}
-                >
+                <button type="button" className="btn-primary text-xs px-3 py-1.5" onClick={handleRestart}>
                   重启 Agent 进程
                 </button>
               </>

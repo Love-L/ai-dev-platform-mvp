@@ -78,13 +78,15 @@ export default function ToastContainer() {
           style={getBgColor(toast.type)}
         >
           {getIcon(toast.type)}
-          <span className="text-sm" style={{ color: "var(--color-text)" }}>{toast.message}</span>
+          <span className="text-sm" style={{ color: "var(--color-text)" }}>
+            {toast.message}
+          </span>
           <button
             onClick={() => removeToast(toast.id)}
             className="ml-2 p-0.5 rounded"
             style={{ transition: "background var(--transition-fast)" }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "rgba(0,0,0,0.08)"}
-            onMouseLeave={(e) => e.currentTarget.style.background = ""}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.08)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "")}
           >
             <X className="w-4 h-4" style={{ color: "var(--color-text-tertiary)" }} />
           </button>

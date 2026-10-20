@@ -5,12 +5,14 @@
 确保已安装以下工具：
 
 ### 1. Node.js (>= 18)
+
 ```bash
 node --version
 npm --version
 ```
 
 ### 2. Rust (>= 1.70)
+
 ```bash
 rustc --version
 cargo --version
@@ -19,6 +21,7 @@ cargo --version
 如果未安装，请访问 https://rustup.rs/ 安装。
 
 ### 3. Tauri CLI
+
 ```bash
 cargo install tauri-cli
 ```
@@ -44,6 +47,7 @@ npm run tauri dev
 ```
 
 首次启动会：
+
 1. 编译Rust后端（可能需要几分钟）
 2. 启动Vite开发服务器
 3. 打开桌面应用窗口

@@ -1,6 +1,6 @@
-import { create } from 'zustand';
-import { listProjects, createProject, deleteProject } from '../lib/tauri';
-import type { Project } from '../lib/types';
+import { create } from "zustand";
+import { listProjects, createProject, deleteProject } from "../lib/tauri";
+import type { Project } from "../lib/types";
 
 interface ProjectsState {
   projects: Project[];
