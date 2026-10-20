@@ -264,6 +264,28 @@ async fn start_structured_session_inner(
     permission_mode: Option<String>,
     model: Option<String>,
 ) -> Result<AgentSession, AppError> {
+    // 并发会话上限（F019 加固）：默认 3，可用设置项 max_concurrent_sessions 调整（1–16）。
+    // 仅约束结构化会话进程；PTY 终端模式与历史会话恢复不受限。
+    {
+        let db = state.db.lock().await;
+        let limit: i64 = db
+            .get_setting("max_concurrent_sessions")
+            .ok()
+            .flatten()
+            .and_then(|v| v.parse::<i64>().ok())
+            .map(|v| v.clamp(1, 16))
+            .unwrap_or(3);
+        let running = db
+            .count_running_sessions()
+            .map_err(|e| format!("统计运行中会话失败: {}", e))?;
+        if running >= limit {
+            return Err(AppError::Business(format!(
+                "已达到并发会话上限（{} 个运行中），请等待现有会话结束，或在「设置」中调整最大并发会话数",
+                running
+            )));
+        }
+    }
+
     if !crate::agent::check_agent_available(&agent_path).await {
         return Err(AppError::legacy("Agent 不可用，请先在 Agent 页面执行「刷新检测」".to_string()));
     }

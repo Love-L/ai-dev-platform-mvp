@@ -449,6 +449,11 @@ fn map_session_row(row: &rusqlite::Row<'_>) -> Result<AgentSession> {
     })
 }
 
+/// 统计当前 `running` 状态的会话数（并发上限检查用）
+pub fn count_running_sessions(conn: &Connection) -> Result<i64> {
+    conn.query_row("SELECT COUNT(*) FROM agent_sessions WHERE status = 'running'", [], |r| r.get(0))
+}
+
 pub fn get_agent_sessions(conn: &Connection, agent_id: Option<&str>) -> Result<Vec<AgentSession>> {
     let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
     let mut sql = format!(

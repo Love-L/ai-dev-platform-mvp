@@ -19,6 +19,7 @@ export default function Settings() {
   const [commitTemplate, setCommitTemplate] = useState("feat({task_id}): {task_title}");
   const [autoCommit, setAutoCommit] = useState("auto");
   const [sessionMode, setSessionMode] = useState("auto");
+  const [maxSessions, setMaxSessions] = useState("3");
   const [prdMode, setPrdMode] = useState("api");
   const [defaultAgent, setDefaultAgent] = useState("");
   const [allowedTools, setAllowedTools] = useState("");
@@ -42,6 +43,7 @@ export default function Settings() {
         "prd_generation_mode",
         "default_agent_path",
         "session_allowed_tools",
+        "max_concurrent_sessions",
       ];
       await fetchSettings(keys);
 
@@ -58,6 +60,7 @@ export default function Settings() {
       setPrdMode(fresh["prd_generation_mode"] || "api");
       setDefaultAgent(fresh["default_agent_path"] || "");
       setAllowedTools(fresh["session_allowed_tools"] || "");
+      setMaxSessions(fresh["max_concurrent_sessions"] || "3");
 
       const skillsData = await listPrdSkills();
       setSkills(skillsData);
@@ -97,6 +100,7 @@ export default function Settings() {
         saveSetting("prd_generation_mode", prdMode),
         saveSetting("default_agent_path", defaultAgent),
         saveSetting("session_allowed_tools", allowedTools),
+        saveSetting("max_concurrent_sessions", String(Math.min(16, Math.max(1, Number(maxSessions) || 3)))),
       ]);
     } catch (error) {
       console.error("保存设置失败:", error);
@@ -208,6 +212,21 @@ export default function Settings() {
           </select>
           <p className="text-xs mt-1.5" style={{ color: "var(--color-text-tertiary)" }}>
             自动模式下，任务进入"开发中"状态时将自动创建 Agent 会话
+          </p>
+        </div>
+
+        <div>
+          <label className="label">最大并发会话数</label>
+          <input
+            type="number"
+            min={1}
+            max={16}
+            value={maxSessions}
+            onChange={(e) => setMaxSessions(e.target.value)}
+            className="input"
+          />
+          <p className="text-xs mt-1.5" style={{ color: "var(--color-text-tertiary)" }}>
+            结构化 Agent 会话的同时运行上限（默认 3，范围 1–16），超出时新会话会被拒绝
           </p>
         </div>
 

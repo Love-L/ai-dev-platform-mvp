@@ -1042,6 +1042,11 @@ impl Database {
         agents::get_agent_session(&self.conn, id)
     }
 
+    /// 统计 `running` 状态会话数（并发上限检查用）
+    pub fn count_running_sessions(&self) -> Result<i64> {
+        agents::count_running_sessions(&self.conn)
+    }
+
     /// 创建会话（支持模式与上下文关联）
     pub fn create_agent_session_full(
         &self,

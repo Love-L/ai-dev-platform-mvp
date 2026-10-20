@@ -483,6 +483,21 @@ fn legacy_frontend_encrypted_key_is_migrated_on_read() {
     assert_eq!(unsealed, "sk-ant-real-key");
 }
 
+/// running 会话计数（并发上限检查的基础）
+#[test]
+fn counts_only_running_sessions() {
+    let t = TempDb::new("count-running");
+    let agent_id = seed_agent(&t.db, "count-running");
+
+    let running_a = t.db.create_agent_session(&agent_id, None).unwrap();
+    let _running_b = t.db.create_agent_session(&agent_id, None).unwrap();
+    let done = t.db.create_agent_session(&agent_id, None).unwrap();
+    t.db.finish_agent_session(&done.id, "completed", Some(0)).unwrap();
+
+    assert_eq!(t.db.count_running_sessions().unwrap(), 2);
+    assert_ne!(running_a.status, "completed");
+}
+
 /// keystore 不可用时：敏感项写入必须报错，绝不落明文。
 #[test]
 fn sensitive_setting_write_is_refused_without_keystore() {
