@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 566" width="1000" height="566" font-family="system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#059669"/>
+    </marker>
+    <marker id="arrPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <rect width="1000" height="566" fill="#ffffff"/>
+
+  <!-- 标题 -->
+  <text x="500" y="40" text-anchor="middle" font-size="24" font-weight="700" fill="#0f172a">Skill 自进化引擎：模板会自我诊断、自我评分、自动刹车</text>
+  <text x="500" y="66" text-anchor="middle" font-size="14" fill="#64748b">执行反馈驱动迭代，棘轮防止退化，人保留最终决定权</text>
+
+  <!-- 阶段 1 执行日志 -->
+  <g>
+    <rect x="28" y="104" width="172" height="118" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <circle cx="52" cy="130" r="13" fill="#64748b"/>
+    <text x="52" y="135" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">1</text>
+    <text x="76" y="135" font-size="15" font-weight="700" fill="#0f172a">执行日志沉淀</text>
+    <text x="44" y="170" font-size="12" fill="#475569">skill_execution_logs</text>
+    <text x="44" y="192" font-size="12" fill="#475569">每次生成都记账</text>
+    <text x="44" y="210" font-size="12" fill="#94a3b8">环节 · 成败 · 用量</text>
+  </g>
+  <line x1="204" y1="163" x2="222" y2="163" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 阶段 2 L1 -->
+  <g>
+    <rect x="226" y="104" width="172" height="118" rx="12" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5"/>
+    <circle cx="250" cy="130" r="13" fill="#2563eb"/>
+    <text x="250" y="135" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">2</text>
+    <text x="274" y="135" font-size="15" font-weight="700" fill="#0f172a">L1 规则诊断</text>
+    <text x="242" y="170" font-size="12" fill="#475569">4 条确定性规则</text>
+    <text x="242" y="192" font-size="12" fill="#475569">结构分 0–60</text>
+    <text x="242" y="210" font-size="12" fill="#94a3b8">目标/受众/格式 6 维体检</text>
+  </g>
+  <line x1="402" y1="163" x2="420" y2="163" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 阶段 3 L2 -->
+  <g>
+    <rect x="424" y="104" width="172" height="118" rx="12" fill="#ffffff" stroke="#ddd6fe" stroke-width="1.5"/>
+    <circle cx="448" cy="130" r="13" fill="#7c3aed"/>
+    <text x="448" y="135" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">3</text>
+    <text x="472" y="135" font-size="15" font-weight="700" fill="#0f172a">L2 优化草稿</text>
+    <text x="440" y="170" font-size="12" fill="#475569">只改「Prompt 模板」段</text>
+    <text x="440" y="192" font-size="12" fill="#475569">产出草稿</text>
+    <text x="440" y="210" font-size="12" fill="#94a3b8">绝不直接落库</text>
+  </g>
+  <line x1="600" y1="163" x2="618" y2="163" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 阶段 4 Judge -->
+  <g>
+    <rect x="622" y="104" width="172" height="118" rx="12" fill="#ffffff" stroke="#fbcfe8" stroke-width="1.5"/>
+    <circle cx="646" cy="130" r="13" fill="#db2777"/>
+    <text x="646" y="135" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">4</text>
+    <text x="670" y="135" font-size="15" font-weight="700" fill="#0f172a">LLM-as-Judge</text>
+    <text x="638" y="170" font-size="12" fill="#475569">独立评分 prompt</text>
+    <text x="638" y="192" font-size="12" fill="#475569">效果分 0–40</text>
+    <text x="638" y="210" font-size="12" fill="#94a3b8">与结构分合成总分</text>
+  </g>
+  <line x1="798" y1="163" x2="816" y2="163" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 阶段 5 棘轮 -->
+  <g>
+    <rect x="820" y="104" width="172" height="118" rx="12" fill="#ffffff" stroke="#fde68a" stroke-width="1.5"/>
+    <circle cx="844" cy="130" r="13" fill="#d97706"/>
+    <text x="844" y="135" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">5</text>
+    <text x="868" y="135" font-size="15" font-weight="700" fill="#0f172a">棘轮判定</text>
+    <text x="836" y="170" font-size="12" fill="#475569">总分低于旧版 → 建议回滚</text>
+    <text x="836" y="192" font-size="12" fill="#475569">分数回升 → 关闭建议</text>
+    <text x="836" y="210" font-size="12" fill="#94a3b8">涨跌交替 → 振荡告警</text>
+  </g>
+
+  <!-- 5 → 人在回路 -->
+  <path d="M 906 226 C 906 300, 780 328, 740 328" fill="none" stroke="#059669" stroke-width="2" marker-end="url(#arrGreen)"/>
+
+  <!-- 人在回路 -->
+  <rect x="272" y="290" width="464" height="76" rx="14" fill="#ecfdf5" stroke="#34d399" stroke-width="2"/>
+  <text x="504" y="320" text-anchor="middle" font-size="17" font-weight="700" fill="#065f46">人在回路（Human-in-the-Loop）</text>
+  <text x="504" y="346" text-anchor="middle" font-size="13" fill="#047857">所有「应用 / 回滚」必须由你显式确认 —— 引擎只建议、从不擅动</text>
+
+  <!-- 人在回路 → 1（生效回环） -->
+  <path d="M 268 344 C 200 362, 114 330, 114 234" fill="none" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrPurple)"/>
+  <rect x="128" y="338" width="140" height="22" rx="11" fill="#f5f3ff"/>
+  <text x="198" y="353" text-anchor="middle" font-size="12" font-weight="600" fill="#6d28d9">生效后进入下一轮</text>
+
+  <!-- 资产层：模板家族树 -->
+  <text x="28" y="424" font-size="15" font-weight="700" fill="#0f172a">资产层：可回溯的模板家族树</text>
+
+  <rect x="28" y="444" width="136" height="40" rx="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="96" y="469" text-anchor="middle" font-size="13" font-weight="600" fill="#334155">内置模板</text>
+
+  <line x1="168" y1="464" x2="216" y2="464" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="192" y="454" text-anchor="middle" font-size="11" fill="#64748b">派生</text>
+
+  <rect x="220" y="444" width="136" height="40" rx="10" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="288" y="469" text-anchor="middle" font-size="13" font-weight="600" fill="#1e40af">自定义 v1</text>
+
+  <line x1="360" y1="464" x2="408" y2="464" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="384" y="454" text-anchor="middle" font-size="11" fill="#64748b">v+1</text>
+
+  <rect x="412" y="444" width="136" height="40" rx="10" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="480" y="469" text-anchor="middle" font-size="13" font-weight="600" fill="#1e40af">自定义 v2</text>
+
+  <line x1="552" y1="464" x2="600" y2="464" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="576" y="454" text-anchor="middle" font-size="11" fill="#64748b">v+1</text>
+
+  <rect x="604" y="444" width="136" height="40" rx="10" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="672" y="469" text-anchor="middle" font-size="13" font-weight="600" fill="#1e40af">自定义 v3</text>
+
+  <text x="28" y="516" font-size="12.5" fill="#64748b">血缘 parent_id · 版本 version · 反馈 skill_execution_logs —— 模板是资产，不是一次性文本</text>
+
+  <!-- Slogan 徽章 -->
+  <rect x="744" y="430" width="228" height="56" rx="28" fill="#0f172a"/>
+  <text x="858" y="465" text-anchor="middle" font-size="16.5" font-weight="700" fill="#ffffff">进化有油门，也有刹车</text>
+</svg>

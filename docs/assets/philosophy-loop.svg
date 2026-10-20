@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 468" width="1000" height="468" font-family="system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/>
+    </marker>
+    <marker id="arrBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+  </defs>
+
+  <rect width="1000" height="468" fill="#ffffff"/>
+
+  <!-- 标题 -->
+  <text x="500" y="42" text-anchor="middle" font-size="24" font-weight="700" fill="#0f172a">一个窗口，一条链路：研发全流程本地闭环</text>
+  <text x="500" y="72" text-anchor="middle" font-size="14" fill="#64748b">需求 → PRD → 任务 → 执行 → 提交，五步不出这个窗口</text>
+
+  <!-- 本机边界 -->
+  <rect x="30" y="104" width="940" height="316" rx="16" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+  <rect x="52" y="92" width="170" height="24" rx="12" fill="#0f172a"/>
+  <text x="137" y="108" text-anchor="middle" font-size="13" font-weight="600" fill="#ffffff">本机 · Local-First</text>
+
+  <!-- 反馈弧：执行 → PRD 模板自进化 -->
+  <path d="M 898 184 C 898 140, 322 140, 322 184" fill="none" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrPurple)"/>
+  <rect x="386" y="126" width="230" height="24" rx="12" fill="#f5f3ff"/>
+  <text x="501" y="142" text-anchor="middle" font-size="13" font-weight="600" fill="#6d28d9">使用统计反馈 → Skill 模板自进化</text>
+
+  <!-- 卡片 1 需求 -->
+  <g>
+    <rect x="52" y="196" width="156" height="112" rx="12" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5"/>
+    <rect x="52" y="196" width="156" height="6" rx="3" fill="#2563eb"/>
+    <text x="130" y="234" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">需求</text>
+    <text x="130" y="262" text-anchor="middle" font-size="12.5" fill="#475569">富文本录入 · AI 完善</text>
+    <text x="130" y="284" text-anchor="middle" font-size="12.5" fill="#475569">变更历史全留痕</text>
+  </g>
+  <line x1="212" y1="252" x2="238" y2="252" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 卡片 2 PRD -->
+  <g>
+    <rect x="242" y="196" width="156" height="112" rx="12" fill="#ffffff" stroke="#ddd6fe" stroke-width="1.5"/>
+    <rect x="242" y="196" width="156" height="6" rx="3" fill="#7c3aed"/>
+    <text x="320" y="234" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">PRD 生成</text>
+    <text x="320" y="262" text-anchor="middle" font-size="12.5" fill="#475569">Skill 模板驱动</text>
+    <text x="320" y="284" text-anchor="middle" font-size="12.5" fill="#475569">流式生成 · 记账</text>
+  </g>
+  <line x1="402" y1="252" x2="428" y2="252" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 卡片 3 任务 -->
+  <g>
+    <rect x="432" y="196" width="156" height="112" rx="12" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5"/>
+    <rect x="432" y="196" width="156" height="6" rx="3" fill="#2563eb"/>
+    <text x="510" y="234" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">任务规划</text>
+    <text x="510" y="262" text-anchor="middle" font-size="12.5" fill="#475569">自动拆解 · 看板拖拽</text>
+    <text x="510" y="284" text-anchor="middle" font-size="12.5" fill="#475569">待开发 → 已完成</text>
+  </g>
+  <line x1="592" y1="252" x2="618" y2="252" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 卡片 4 执行 -->
+  <g>
+    <rect x="622" y="196" width="156" height="112" rx="12" fill="#ffffff" stroke="#a7f3d0" stroke-width="1.5"/>
+    <rect x="622" y="196" width="156" height="6" rx="3" fill="#059669"/>
+    <text x="700" y="234" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">Agent 执行</text>
+    <text x="700" y="262" text-anchor="middle" font-size="12.5" fill="#475569">PTY 真实终端</text>
+    <text x="700" y="284" text-anchor="middle" font-size="12.5" fill="#475569">Claude Code · Codex</text>
+  </g>
+  <line x1="782" y1="252" x2="808" y2="252" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 卡片 5 提交核算 -->
+  <g>
+    <rect x="812" y="196" width="156" height="112" rx="12" fill="#ffffff" stroke="#fde68a" stroke-width="1.5"/>
+    <rect x="812" y="196" width="156" height="6" rx="3" fill="#d97706"/>
+    <text x="890" y="234" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">提交 · 核算</text>
+    <text x="890" y="262" text-anchor="middle" font-size="12.5" fill="#475569">Git commit 归属</text>
+    <text x="890" y="284" text-anchor="middle" font-size="12.5" fill="#475569">Token 记账 · 预算告警</text>
+  </g>
+
+  <!-- 底部说明 chips -->
+  <rect x="52" y="344" width="560" height="52" rx="12" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1.5"/>
+  <text x="332" y="366" text-anchor="middle" font-size="13.5" font-weight="700" fill="#065f46">数据一个字节都不上云</text>
+  <text x="332" y="386" text-anchor="middle" font-size="12.5" fill="#047857">SQLite（WAL）· keystore（DPAPI）· 自动备份 · 会话日志</text>
+
+  <rect x="632" y="344" width="336" height="52" rx="12" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+  <text x="800" y="366" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1e40af">唯一出站：Claude API</text>
+  <text x="800" y="386" text-anchor="middle" font-size="12.5" fill="#1d4ed8">仅提示词 · 经你自己的 API Key</text>
+
+  <!-- 脚注 -->
+  <text x="500" y="448" text-anchor="middle" font-size="12.5" fill="#94a3b8">无账号 · 无服务器 · 无遥测 · 完全离线可用（仅 LLM 调用需网络）</text>
+</svg>
