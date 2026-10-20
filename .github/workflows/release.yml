@@ -1,0 +1,67 @@
+name: Release
+
+# 推送 v* 标签即构建三平台安装包并发布 GitHub Release。
+# 用法：git tag v2.4.0 && git push origin v2.4.0
+#
+# 自动更新（updater）可选：配置 secrets.UPDATER_PRIVATE_KEY 与
+# UPDATER_PRIVATE_KEY_PASSWORD 后，本工作流会附带签名产物与 latest.json，
+# 客户端"检查更新"即可收到该 Release。
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Tauri system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libgtk-3-dev libssl-dev
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 可选：自动更新签名私钥（不设置则不产出签名/latest.json）
+          UPDATER_PRIVATE_KEY: ${{ secrets.UPDATER_PRIVATE_KEY }}
+          UPDATER_PRIVATE_KEY_PASSWORD: ${{ secrets.UPDATER_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: ACE ${{ github.ref_name }}
+          releaseBody: |
+            ## ACE ${{ github.ref_name }}
+
+            安装包下载见 Assets（Windows .msi / .exe、macOS .dmg、Linux .AppImage / .deb）。
+
+            校验与更新说明见仓库 README「安装」章节。
+          releaseDraft: true
+          prerelease: false

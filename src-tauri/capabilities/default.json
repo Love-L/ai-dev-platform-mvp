@@ -12,6 +12,7 @@
     "core:window:allow-close",
     "core:webview:default",
     "core:tray:default",
-    "shell:default"
+    "shell:default",
+    "updater:default"
   ]
 }

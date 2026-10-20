@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Save, Key, FolderOpen, Info, FileText, ChevronDown, ChevronUp, Terminal } from "lucide-react";
+import { Save, Key, FolderOpen, Info, FileText, ChevronDown, ChevronUp, Terminal, RefreshCw } from "lucide-react";
 import { listPrdSkills, getAgents } from "../lib/tauri";
 import type { PrdSkill } from "../lib/types";
 import { useSettingsStore } from "../stores";
@@ -10,6 +10,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [skills, setSkills] = useState<PrdSkill[]>([]);
   const [expandedSkill, setExpandedSkill] = useState<string | null>(null);
+  const [updateChecking, setUpdateChecking] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState("");
 
   const [apiKey, setApiKey] = useState("");
   const [projectName, setProjectName] = useState("默认项目");
@@ -102,6 +104,27 @@ export default function Settings() {
       setSaving(false);
     }
   }
+
+  const handleCheckUpdate = async () => {
+    setUpdateChecking(true);
+    setUpdateMessage("");
+    try {
+      // 动态加载：浏览器预览/测试环境无 Tauri updater 运行时，点击时才解析
+      const { check } = await import("@tauri-apps/plugin-updater");
+      const update = await check();
+      if (update) {
+        setUpdateMessage(`发现新版本 ${update.version}（当前 ${update.currentVersion}），正在下载安装…`);
+        await update.downloadAndInstall();
+        setUpdateMessage(`新版本 ${update.version} 已安装，重启应用即可生效。`);
+      } else {
+        setUpdateMessage("已是最新版本");
+      }
+    } catch (error) {
+      setUpdateMessage(`检查更新失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setUpdateChecking(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -343,6 +366,31 @@ export default function Settings() {
                 )}
               </div>
             ))
+          )}
+        </div>
+      </div>
+
+      {/* 应用更新 */}
+      <div className="rounded-xl border p-4" style={{ borderColor: "var(--color-border)" }}>
+        <div className="flex items-center gap-2 mb-3">
+          <RefreshCw className="w-4 h-4" style={{ color: "var(--color-text-tertiary)" }} />
+          <h3 className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>
+            应用更新
+          </h3>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleCheckUpdate}
+            disabled={updateChecking}
+            className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+            style={{ background: "var(--color-bg-subtle)", color: "var(--color-text)" }}
+          >
+            {updateChecking ? "检查中..." : "检查更新"}
+          </button>
+          {updateMessage && (
+            <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
+              {updateMessage}
+            </span>
           )}
         </div>
       </div>
