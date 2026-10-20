@@ -1360,19 +1360,19 @@ async fn start_structured_session_inner(
 
     let work_dir = match work_dir.filter(|s| !s.trim().is_empty()) {
         Some(dir) => Some(dir),
-        None => read_string_setting(&state, "project_path").await,
+        None => read_string_setting(state, "project_path").await,
     };
 
     let permission_mode = match permission_mode.filter(|s| !s.trim().is_empty()) {
         Some(m) => m,
-        None => read_string_setting(&state, "session_permission_mode")
+        None => read_string_setting(state, "session_permission_mode")
             .await
             .unwrap_or_else(|| DEFAULT_PERMISSION_MODE.to_string()),
     };
 
     // R2：默认工具白名单（设置键 session_allowed_tools，逗号分隔），创建会话时预授权，
     // 避免 WebSearch 等工具首次调用即被权限策略拒绝
-    let default_allowed_tools: Vec<String> = read_string_setting(&state, "session_allowed_tools")
+    let default_allowed_tools: Vec<String> = read_string_setting(state, "session_allowed_tools")
         .await
         .map(|s| {
             s.split(',')

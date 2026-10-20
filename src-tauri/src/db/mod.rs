@@ -67,6 +67,9 @@ impl Database {
         // 登记 schema 基线版本（运行时唯一的迁移入口为 init_tables + migrate_tables）
         migration::ensure_baseline(&db.conn)?;
 
+        // v9+ 版本化迁移：新老库统一由此顺序升级（必须在建表/补列之后）
+        migration::apply_pending_migrations(&db.conn)?;
+
         Ok(db)
     }
 
