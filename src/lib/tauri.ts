@@ -1,4 +1,41 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+
+/** 后端结构化错误（`AppError` 序列化形态）附加在 Error 上的机器可读码 */
+export interface AppErrorInfo extends Error {
+  code?: string;
+}
+
+/**
+ * 规整后端错误为带 `code` 的 Error：
+ * - 结构化对象 `{ code, message }`（P1-3 起所有命令错误）→ `Error.message` + `Error.code`；
+ * - 历史字符串错误 / 异常值 → 兼容包装，保持 `error.message` 可读。
+ * 页面侧 `catch` 无需感知差异；需要分支处理时读 `error.code`
+ * （`validation` / `business` / `not_found` / `database` / `external` / `crypto` / `legacy`）。
+ */
+export function normalizeInvokeError(e: unknown): AppErrorInfo {
+  if (e && typeof e === "object" && "message" in e) {
+    const obj = e as { code?: unknown; message?: unknown };
+    const err = new Error(String(obj.message)) as AppErrorInfo;
+    if (typeof obj.code === "string") {
+      err.code = obj.code;
+    }
+    return err;
+  }
+  if (e instanceof Error) {
+    return e;
+  }
+  return new Error(String(e));
+}
+
+/** 统一 IPC 出口：所有 Tauri 调用经此透传，错误在边界处结构化 */
+async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  try {
+    // 零参命令不传第二参数（保持历史调用形态，兼容 mock 断言）
+    return args === undefined ? await tauriInvoke<T>(cmd) : await tauriInvoke<T>(cmd, args);
+  } catch (e) {
+    throw normalizeInvokeError(e);
+  }
+}
 import type {
   Requirement,
   Task,

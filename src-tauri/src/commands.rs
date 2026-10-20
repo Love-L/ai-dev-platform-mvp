@@ -1,4 +1,5 @@
-use crate::AppState;
+﻿use crate::AppState;
+use crate::errors::AppError;
 use crate::db::{Requirement, Task, Project, Agent, AgentSession, TokenUsage, PrdSkill, TokenUsageSummary, DailyUsage, ModelUsage};
 use crate::services::*;
 use crate::validation::{validate_requirement, validate_task, validate_project};
@@ -29,9 +30,9 @@ pub async fn create_requirement(
     estimated_effort: Option<f64>,
     tags: Option<String>,
     notes: Option<String>,
-) -> Result<Requirement, String> {
+) -> Result<Requirement, AppError> {
     // 输入验证
-    validate_requirement(&title, &priority).map_err(|e| e.to_string())?;
+    validate_requirement(&title, &priority)?;
 
     let svc = RequirementService::new(&state.db, &state.cache);
     svc.create_requirement(
@@ -49,7 +50,7 @@ pub async fn create_requirement(
         estimated_effort,
         tags.as_deref(),
         notes.as_deref(),
-    ).await
+    ).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -58,22 +59,22 @@ pub async fn list_requirements(
     page: Option<u32>,
     page_size: Option<u32>,
     status: Option<String>,
-) -> Result<crate::pagination::PagedResult<Requirement>, String> {
+) -> Result<crate::pagination::PagedResult<Requirement>, AppError> {
     let svc = RequirementService::new(&state.db, &state.cache);
     let params = crate::pagination::PaginationParams {
         page: page.unwrap_or(1),
         page_size: page_size.unwrap_or(20),
     };
-    svc.list_requirements_paged(&params, status.as_deref()).await
+    svc.list_requirements_paged(&params, status.as_deref()).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn get_requirement(
     state: State<'_, AppState>,
     id: String,
-) -> Result<Option<Requirement>, String> {
+) -> Result<Option<Requirement>, AppError> {
     let svc = RequirementService::new(&state.db, &state.cache);
-    svc.get_requirement(&id).await
+    svc.get_requirement(&id).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -96,18 +97,18 @@ pub async fn update_requirement(
     estimated_effort: Option<f64>,
     tags: Option<String>,
     notes: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     // 如果要更新状态，先校验状态流转合法性
     if let Some(ref new_status) = status {
         let svc = RequirementService::new(&state.db, &state.cache);
-        let current = svc.get_requirement(&id).await
+        let current = svc.get_requirement(&id).await.map_err(AppError::legacy)
             .map_err(|e| format!("查询需求失败: {}", e))?;
         match current {
             Some(req) => {
                 crate::validation::validate_requirement_status_transition(&req.status, new_status)
                     .map_err(|e| e.to_string())?;
             }
-            None => return Err(format!("需求 {} 不存在", id)),
+            None => return Err(AppError::legacy(format!("需求 {} 不存在", id))),
         }
     }
 
@@ -133,14 +134,14 @@ pub async fn update_requirement(
         status.as_deref(),
         prd_content.as_deref(),
         &ext,
-    ).await
+    ).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn delete_requirement(
     state: State<'_, AppState>,
     id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let svc = RequirementService::new(&state.db, &state.cache);
 
     // 检查是否有关联任务
@@ -150,14 +151,14 @@ pub async fn delete_requirement(
             .map_err(|e| format!("查询关联任务失败: {}", e))?;
 
         if task_count > 0 {
-            return Err(format!(
+            return Err(AppError::Business(format!(
                 "需求下有 {} 个关联任务，请先删除或解绑",
                 task_count
-            ));
+            )));
         }
     }
 
-    svc.delete_requirement(&id).await
+    svc.delete_requirement(&id).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -166,10 +167,10 @@ pub async fn generate_prd(
     requirement_id: String,
     skill_id: Option<String>,
     extra_content: Option<String>,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     let svc = PrdService::new(&state.db, &state.cache);
     svc.generate_prd(&requirement_id, skill_id.as_deref(), extra_content.as_deref())
-        .await
+        .await.map_err(AppError::legacy)
 }
 
 /// 流式生成 PRD（F049）。
@@ -184,7 +185,7 @@ pub async fn generate_prd_streaming(
     requirement_id: String,
     skill_id: Option<String>,
     extra_content: Option<String>,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     let svc = PrdService::new(&state.db, &state.cache);
     svc.generate_prd_streaming(
         &requirement_id,
@@ -192,7 +193,7 @@ pub async fn generate_prd_streaming(
         extra_content.as_deref(),
         app,
     )
-    .await
+    .await.map_err(AppError::legacy)
 }
 
 /// 取用于一次性 LLM 调用/任务会话的 Agent 路径（MA-09 选路优先级）：
@@ -231,7 +232,7 @@ pub async fn enrich_requirement(
     state: State<'_, AppState>,
     requirement_id: String,
     extra_content: Option<String>,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, AppError> {
     // 获取需求信息
     let requirement = {
         let db = state.db.lock().await;
@@ -377,12 +378,12 @@ pub async fn create_task(
     tags: Option<String>,
     notes: Option<String>,
     description: Option<String>,
-) -> Result<Task, String> {
+) -> Result<Task, AppError> {
     // 输入验证
-    validate_task(&title, &task_type, &priority).map_err(|e| e.to_string())?;
+    validate_task(&title, &task_type, &priority)?;
     if let Some(desc) = &description {
         if desc.chars().count() > 100_000 {
-            return Err("任务描述不能超过 100000 字".to_string());
+            return Err(AppError::legacy("任务描述不能超过 100000 字".to_string()));
         }
     }
 
@@ -400,7 +401,7 @@ pub async fn create_task(
         tags.as_deref(),
         notes.as_deref(),
         description.as_deref(),
-    ).await
+    ).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -408,9 +409,9 @@ pub async fn list_tasks(
     state: State<'_, AppState>,
     status: Option<String>,
     task_type: Option<String>,
-) -> Result<Vec<Task>, String> {
+) -> Result<Vec<Task>, AppError> {
     let svc = TaskService::new(&state.db, &state.cache);
-    svc.list_tasks(status.as_deref(), task_type.as_deref()).await
+    svc.list_tasks(status.as_deref(), task_type.as_deref()).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -418,7 +419,7 @@ pub async fn update_task_status(
     state: State<'_, AppState>,
     id: String,
     status: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     // 校验状态流转合法性
     {
         let db = state.db.lock().await;
@@ -429,21 +430,21 @@ pub async fn update_task_status(
                 crate::validation::validate_task_status_transition(&task.status, &status)
                     .map_err(|e| e.to_string())?;
             }
-            None => return Err(format!("任务 {} 不存在", id)),
+            None => return Err(AppError::legacy(format!("任务 {} 不存在", id))),
         }
     }
 
     let svc = TaskService::new(&state.db, &state.cache);
-    svc.update_task_status(&id, &status).await
+    svc.update_task_status(&id, &status).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn delete_task(
     state: State<'_, AppState>,
     id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let svc = TaskService::new(&state.db, &state.cache);
-    svc.delete_task(&id).await
+    svc.delete_task(&id).await.map_err(AppError::legacy)
 }
 
 // ==================== 任务管理扩展命令 ====================
@@ -452,10 +453,10 @@ pub async fn delete_task(
 pub async fn get_task(
     state: State<'_, AppState>,
     id: String,
-) -> Result<Option<Task>, String> {
+) -> Result<Option<Task>, AppError> {
     let db = state.db.lock().await;
     db.get_task(&id)
-        .map_err(|e| format!("获取任务详情失败: {}", e))
+        .map_err(|e| format!("获取任务详情失败: {}", e)).map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -470,30 +471,30 @@ pub async fn update_task(
     due_date: Option<String>,
     tags: Option<String>,
     project_id: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let db = state.db.lock().await;
     db.update_task(&id, title.as_deref(), description.as_deref(), task_type.as_deref(), priority.as_deref(), assignee.as_deref(), due_date.as_deref(), tags.as_deref(), project_id.as_deref())
-        .map_err(|e| format!("更新任务失败: {}", e))
+        .map_err(|e| format!("更新任务失败: {}", e)).map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn list_tasks_by_project(
     state: State<'_, AppState>,
     project_id: String,
-) -> Result<Vec<Task>, String> {
+) -> Result<Vec<Task>, AppError> {
     let db = state.db.lock().await;
     db.list_tasks_by_project(&project_id)
-        .map_err(|e| format!("获取项目任务列表失败: {}", e))
+        .map_err(|e| format!("获取项目任务列表失败: {}", e)).map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn list_tasks_by_requirement(
     state: State<'_, AppState>,
     requirement_id: String,
-) -> Result<Vec<Task>, String> {
+) -> Result<Vec<Task>, AppError> {
     let db = state.db.lock().await;
     db.list_tasks_by_requirement(&requirement_id)
-        .map_err(|e| format!("获取需求任务列表失败: {}", e))
+        .map_err(|e| format!("获取需求任务列表失败: {}", e)).map_err(AppError::legacy)
 }
 
 // ==================== 任务评论命令 ====================
@@ -504,44 +505,44 @@ pub async fn create_task_comment(
     task_id: String,
     author: String,
     content: String,
-) -> Result<crate::db::TaskComment, String> {
+) -> Result<crate::db::TaskComment, AppError> {
     let db = state.db.lock().await;
     db.create_task_comment(&task_id, &author, &content)
-        .map_err(|e| format!("创建评论失败: {}", e))
+        .map_err(|e| format!("创建评论失败: {}", e)).map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn list_task_comments(
     state: State<'_, AppState>,
     task_id: String,
-) -> Result<Vec<crate::db::TaskComment>, String> {
+) -> Result<Vec<crate::db::TaskComment>, AppError> {
     let db = state.db.lock().await;
     db.list_task_comments(&task_id)
-        .map_err(|e| format!("获取评论列表失败: {}", e))
+        .map_err(|e| format!("获取评论列表失败: {}", e)).map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn delete_task_comment(
     state: State<'_, AppState>,
     id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let db = state.db.lock().await;
     db.delete_task_comment(&id)
-        .map_err(|e| format!("删除评论失败: {}", e))
+        .map_err(|e| format!("删除评论失败: {}", e)).map_err(AppError::legacy)
 }
 
 // ==================== Agent管理命令 ====================
 
 #[tauri::command]
-pub async fn discover_agents(state: State<'_, AppState>) -> Result<Vec<Agent>, String> {
+pub async fn discover_agents(state: State<'_, AppState>) -> Result<Vec<Agent>, AppError> {
     let svc = AgentService::new(&state.db);
-    svc.discover_agents().await
+    svc.discover_agents().await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
-pub async fn get_agents(state: State<'_, AppState>) -> Result<Vec<Agent>, String> {
+pub async fn get_agents(state: State<'_, AppState>) -> Result<Vec<Agent>, AppError> {
     let db = state.db.lock().await;
-    db.get_agents().map_err(|e| e.to_string())
+    db.get_agents().map_err(|e| e.to_string()).map_err(AppError::legacy)
 }
 
 /// Agent 状态治理（F021）：
@@ -553,7 +554,7 @@ pub async fn get_agents(state: State<'_, AppState>) -> Result<Vec<Agent>, String
 ///
 /// 返回复核后的 Agent 列表。
 #[tauri::command]
-pub async fn verify_agents(state: State<'_, AppState>) -> Result<Vec<Agent>, String> {
+pub async fn verify_agents(state: State<'_, AppState>) -> Result<Vec<Agent>, AppError> {
     // 1. 进程存活对账
     //
     // 注意：结构化会话（模块 16）不经过 PTY，其存活状态在 session_registry 中，
@@ -633,7 +634,7 @@ pub async fn start_agent(
     state: State<'_, AppState>,
     agent_path: String,
     task_id: Option<String>,
-) -> Result<AgentSession, String> {
+) -> Result<AgentSession, AppError> {
     // 1. 创建数据库会话记录
     let svc = AgentService::new(&state.db);
     let session = svc.start_agent(&agent_path, task_id.as_deref()).await?;
@@ -657,7 +658,7 @@ pub async fn start_agent(
                     error!("回写会话失败状态出错: {}", err);
                 }
             }
-            return Err(format!("启动 Agent 进程失败: {}", e));
+            return Err(AppError::legacy(format!("启动 Agent 进程失败: {}", e)));
         }
     };
 
@@ -747,7 +748,7 @@ pub async fn create_session_from_task(
     state: State<'_, AppState>,
     app: tauri::AppHandle,
     task_id: String,
-) -> Result<AgentSession, String> {
+) -> Result<AgentSession, AppError> {
     let agent_path = first_available_agent(state.inner())
         .await
         .ok_or_else(|| "未检测到可用的 Agent，请先在 Agent 页面执行「刷新检测」".to_string())?;
@@ -767,14 +768,14 @@ pub async fn create_session_from_task(
         None,
         None,
     )
-    .await
+    .await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn stop_agent(
     state: State<'_, AppState>,
     session_id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     // 1. 若存在对应的 PTY 进程，先真实终止，避免进程泄漏（F030）
     if let Some(pty_id) = state.pty_manager.find_pty_by_db_session(&session_id).await {
         match state.pty_manager.kill(&pty_id).await {
@@ -785,16 +786,16 @@ pub async fn stop_agent(
 
     // 2. 更新数据库会话状态
     let svc = AgentService::new(&state.db);
-    svc.stop_agent(&session_id).await
+    svc.stop_agent(&session_id).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn get_agent_sessions(
     state: State<'_, AppState>,
     agent_id: Option<String>,
-) -> Result<Vec<AgentSession>, String> {
+) -> Result<Vec<AgentSession>, AppError> {
     let svc = AgentService::new(&state.db);
-    svc.get_agent_sessions(agent_id.as_deref()).await
+    svc.get_agent_sessions(agent_id.as_deref()).await.map_err(AppError::legacy)
 }
 
 /// 关联/取消关联会话与开发任务（task_id 为 None 时解除关联）
@@ -803,14 +804,14 @@ pub async fn link_session_task(
     state: State<'_, AppState>,
     session_id: String,
     task_id: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let db = state.db.lock().await;
     if db
         .get_agent_session(&session_id)
         .map_err(|e| format!("查询会话失败: {}", e))?
         .is_none()
     {
-        return Err(format!("会话 {} 不存在", session_id));
+        return Err(AppError::legacy(format!("会话 {} 不存在", session_id)));
     }
     // 关联时联动任务所属需求，保持上下文链路一致
     let requirement_id = match task_id.as_deref() {
@@ -824,7 +825,7 @@ pub async fn link_session_task(
         None => None,
     };
     db.link_session_task(&session_id, task_id.as_deref(), requirement_id.as_deref())
-        .map_err(|e| format!("关联任务失败: {}", e))
+        .map_err(|e| format!("关联任务失败: {}", e)).map_err(AppError::legacy)
 }
 
 // ==================== Token追踪命令 ====================
@@ -833,42 +834,42 @@ pub async fn link_session_task(
 pub async fn get_token_usage(
     state: State<'_, AppState>,
     task_id: Option<String>,
-) -> Result<Vec<TokenUsage>, String> {
+) -> Result<Vec<TokenUsage>, AppError> {
     let svc = TokenService::new(&state.db, &state.cache);
-    svc.get_token_usage(task_id.as_deref()).await
+    svc.get_token_usage(task_id.as_deref()).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn get_token_usage_summary(
     state: State<'_, AppState>,
-) -> Result<TokenUsageSummary, String> {
+) -> Result<TokenUsageSummary, AppError> {
     let svc = TokenService::new(&state.db, &state.cache);
-    svc.get_token_usage_summary().await
+    svc.get_token_usage_summary().await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn get_token_usage_trend(
     state: State<'_, AppState>,
     days: i32,
-) -> Result<Vec<DailyUsage>, String> {
+) -> Result<Vec<DailyUsage>, AppError> {
     let svc = TokenService::new(&state.db, &state.cache);
-    svc.get_token_usage_trend(days).await
+    svc.get_token_usage_trend(days).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn get_token_usage_by_model(
     state: State<'_, AppState>,
-) -> Result<Vec<ModelUsage>, String> {
+) -> Result<Vec<ModelUsage>, AppError> {
     let svc = TokenService::new(&state.db, &state.cache);
-    svc.get_token_usage_by_model().await
+    svc.get_token_usage_by_model().await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn get_token_budget(
     state: State<'_, AppState>,
-) -> Result<Option<serde_json::Value>, String> {
+) -> Result<Option<serde_json::Value>, AppError> {
     let svc = TokenService::new(&state.db, &state.cache);
-    svc.get_token_budget().await
+    svc.get_token_budget().await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -876,17 +877,17 @@ pub async fn set_token_budget(
     state: State<'_, AppState>,
     monthly_limit: i64,
     alert_threshold: f64,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let svc = TokenService::new(&state.db, &state.cache);
-    svc.set_token_budget(monthly_limit, alert_threshold).await
+    svc.set_token_budget(monthly_limit, alert_threshold).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn sync_local_usage(
     state: State<'_, AppState>,
-) -> Result<i64, String> {
+) -> Result<i64, AppError> {
     let svc = TokenService::new(&state.db, &state.cache);
-    svc.sync_local_usage().await
+    svc.sync_local_usage().await.map_err(AppError::legacy)
 }
 
 // ==================== PRD Skill 命令 ====================
@@ -894,18 +895,18 @@ pub async fn sync_local_usage(
 #[tauri::command]
 pub async fn list_prd_skills(
     state: State<'_, AppState>,
-) -> Result<Vec<PrdSkill>, String> {
+) -> Result<Vec<PrdSkill>, AppError> {
     let svc = PrdSkillService::new(&state.db);
-    svc.list_skills().await
+    svc.list_skills().await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn get_prd_skill(
     state: State<'_, AppState>,
     id: String,
-) -> Result<Option<PrdSkill>, String> {
+) -> Result<Option<PrdSkill>, AppError> {
     let svc = PrdSkillService::new(&state.db);
-    svc.get_skill(&id).await
+    svc.get_skill(&id).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -915,9 +916,9 @@ pub async fn create_prd_skill(
     skill_type: String,
     description: Option<String>,
     template: String,
-) -> Result<PrdSkill, String> {
+) -> Result<PrdSkill, AppError> {
     let svc = PrdSkillService::new(&state.db);
-    svc.create_skill(&name, &skill_type, description.as_deref(), &template).await
+    svc.create_skill(&name, &skill_type, description.as_deref(), &template).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -927,18 +928,18 @@ pub async fn update_prd_skill(
     name: Option<String>,
     description: Option<String>,
     template: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let svc = PrdSkillService::new(&state.db);
-    svc.update_skill(&id, name.as_deref(), description.as_deref(), template.as_deref()).await
+    svc.update_skill(&id, name.as_deref(), description.as_deref(), template.as_deref()).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn delete_prd_skill(
     state: State<'_, AppState>,
     id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let svc = PrdSkillService::new(&state.db);
-    svc.delete_skill(&id).await
+    svc.delete_skill(&id).await.map_err(AppError::legacy)
 }
 
 // ==================== Skill 自进化命令 ====================
@@ -947,18 +948,18 @@ pub async fn delete_prd_skill(
 #[tauri::command]
 pub async fn analyze_skills(
     state: State<'_, AppState>,
-) -> Result<Vec<crate::db::SkillSuggestion>, String> {
+) -> Result<Vec<crate::db::SkillSuggestion>, AppError> {
     let svc = SkillEvolutionService::new(&state.db);
-    svc.analyze().await
+    svc.analyze().await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn list_skill_suggestions(
     state: State<'_, AppState>,
     skill_id: Option<String>,
-) -> Result<Vec<crate::db::SkillSuggestion>, String> {
+) -> Result<Vec<crate::db::SkillSuggestion>, AppError> {
     let svc = SkillEvolutionService::new(&state.db);
-    svc.list_suggestions(skill_id.as_deref()).await
+    svc.list_suggestions(skill_id.as_deref()).await.map_err(AppError::legacy)
 }
 
 /// luban-skill 模板四段解析
@@ -967,9 +968,9 @@ pub async fn parse_skill_template(
     state: State<'_, AppState>,
     skill_id: Option<String>,
     template: Option<String>,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, AppError> {
     let svc = SkillEvolutionService::new(&state.db);
-    svc.parse_template(skill_id.as_deref(), template.as_deref()).await
+    svc.parse_template(skill_id.as_deref(), template.as_deref()).await.map_err(AppError::legacy)
 }
 
 /// 评分（结构分静态 + 效果分 Judge）+ 棘轮判定
@@ -977,18 +978,18 @@ pub async fn parse_skill_template(
 pub async fn judge_skill(
     state: State<'_, AppState>,
     skill_id: String,
-) -> Result<crate::db::SkillScore, String> {
+) -> Result<crate::db::SkillScore, AppError> {
     let svc = SkillEvolutionService::new(&state.db);
-    svc.judge(&skill_id).await
+    svc.judge(&skill_id).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn get_skill_score_history(
     state: State<'_, AppState>,
     skill_id: String,
-) -> Result<Vec<crate::db::SkillScore>, String> {
+) -> Result<Vec<crate::db::SkillScore>, AppError> {
     let svc = SkillEvolutionService::new(&state.db);
-    svc.score_history(&skill_id).await
+    svc.score_history(&skill_id).await.map_err(AppError::legacy)
 }
 
 /// L2 优化器：返回草稿（不落库，需前端 diff 确认后 apply）
@@ -996,9 +997,9 @@ pub async fn get_skill_score_history(
 pub async fn optimize_skill(
     state: State<'_, AppState>,
     skill_id: String,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, AppError> {
     let svc = SkillEvolutionService::new(&state.db);
-    svc.optimize(&skill_id).await
+    svc.optimize(&skill_id).await.map_err(AppError::legacy)
 }
 
 /// 应用优化草稿（人在回路确认入口，version+1）
@@ -1007,9 +1008,9 @@ pub async fn apply_skill_suggestion(
     state: State<'_, AppState>,
     suggestion_id: String,
     new_template: Option<String>,
-) -> Result<PrdSkill, String> {
+) -> Result<PrdSkill, AppError> {
     let svc = SkillEvolutionService::new(&state.db);
-    svc.apply_suggestion(&suggestion_id, new_template.as_deref()).await
+    svc.apply_suggestion(&suggestion_id, new_template.as_deref()).await.map_err(AppError::legacy)
 }
 
 /// 应用 AI 优化草稿（无关联建议，version+1）
@@ -1018,18 +1019,18 @@ pub async fn apply_skill_draft(
     state: State<'_, AppState>,
     skill_id: String,
     new_template: String,
-) -> Result<PrdSkill, String> {
+) -> Result<PrdSkill, AppError> {
     let svc = SkillEvolutionService::new(&state.db);
-    svc.apply_draft(&skill_id, &new_template).await
+    svc.apply_draft(&skill_id, &new_template).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn list_skill_versions(
     state: State<'_, AppState>,
     skill_id: String,
-) -> Result<Vec<crate::db::SkillVersion>, String> {
+) -> Result<Vec<crate::db::SkillVersion>, AppError> {
     let svc = SkillEvolutionService::new(&state.db);
-    svc.list_versions(&skill_id).await
+    svc.list_versions(&skill_id).await.map_err(AppError::legacy)
 }
 
 /// 棘轮回退：应用指定版本快照（写为新版本）
@@ -1038,9 +1039,9 @@ pub async fn revert_skill_version(
     state: State<'_, AppState>,
     skill_id: String,
     version: i32,
-) -> Result<PrdSkill, String> {
+) -> Result<PrdSkill, AppError> {
     let svc = SkillEvolutionService::new(&state.db);
-    svc.revert(&skill_id, version).await
+    svc.revert(&skill_id, version).await.map_err(AppError::legacy)
 }
 
 /// 按 Skill 查询执行日志（进化视图日志 Tab）
@@ -1049,10 +1050,10 @@ pub async fn get_skill_execution_logs_by_skill(
     state: State<'_, AppState>,
     skill_id: String,
     limit: Option<i64>,
-) -> Result<Vec<crate::db::SkillExecutionLog>, String> {
+) -> Result<Vec<crate::db::SkillExecutionLog>, AppError> {
     let db = state.db.lock().await;
     db.get_skill_execution_logs_by_skill(&skill_id, limit.unwrap_or(50))
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string()).map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -1061,9 +1062,9 @@ pub async fn create_custom_skill_from_builtin(
     parent_id: String,
     name: String,
     template: Option<String>,
-) -> Result<PrdSkill, String> {
+) -> Result<PrdSkill, AppError> {
     let svc = PrdSkillService::new(&state.db);
-    svc.create_custom_skill(&parent_id, &name, template.as_deref()).await
+    svc.create_custom_skill(&parent_id, &name, template.as_deref()).await.map_err(AppError::legacy)
 }
 
 // ==================== 统计命令 ====================
@@ -1071,9 +1072,9 @@ pub async fn create_custom_skill_from_builtin(
 #[tauri::command]
 pub async fn get_statistics(
     state: State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, AppError> {
     let svc = StatsService::new(&state.db, &state.cache);
-    svc.get_statistics().await
+    svc.get_statistics().await.map_err(AppError::legacy)
 }
 
 // ==================== 缓存命令 ====================
@@ -1081,7 +1082,7 @@ pub async fn get_statistics(
 #[tauri::command]
 pub async fn get_cache_stats(
     state: State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, AppError> {
     let stats = state.cache.manager.stats().await;
 
     Ok(serde_json::json!({
@@ -1096,7 +1097,7 @@ pub async fn get_cache_stats(
 #[tauri::command]
 pub async fn clear_cache(
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     state.cache.manager.clear().await;
     info!("缓存已清空");
     Ok(())
@@ -1108,9 +1109,9 @@ pub async fn clear_cache(
 pub async fn get_setting(
     state: State<'_, AppState>,
     key: String,
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, AppError> {
     let svc = SettingService::new(&state.db, &state.cache);
-    svc.get_setting(&key).await
+    svc.get_setting(&key).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -1118,25 +1119,25 @@ pub async fn set_setting(
     state: State<'_, AppState>,
     key: String,
     value: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let svc = SettingService::new(&state.db, &state.cache);
-    svc.set_setting(&key, &value).await
+    svc.set_setting(&key, &value).await.map_err(AppError::legacy)
 }
 
 // ==================== 加密命令 ====================
 
 #[tauri::command]
-pub async fn encrypt_api_key(api_key: String, password: String) -> Result<String, String> {
-    crate::crypto::encrypt_api_key(&api_key, &password).map_err(|e| e.to_string())
+pub async fn encrypt_api_key(api_key: String, password: String) -> Result<String, AppError> {
+    crate::crypto::encrypt_api_key(&api_key, &password).map_err(|e| e.to_string()).map_err(AppError::legacy)
 }
 
 #[tauri::command]
-pub async fn decrypt_api_key(encrypted: String, password: String) -> Result<String, String> {
+pub async fn decrypt_api_key(encrypted: String, password: String) -> Result<String, AppError> {
     // 先做格式预检，给出可读错误，而不是把底层解析错误直接抛给用户
     if !crate::crypto::is_encrypted_format(&encrypted) {
-        return Err("密文格式不正确：请提供由 encrypt_api_key 生成的 base64 字符串".to_string());
+        return Err(AppError::legacy("密文格式不正确：请提供由 encrypt_api_key 生成的 base64 字符串".to_string()));
     }
-    crate::crypto::decrypt_api_key(&encrypted, &password).map_err(|e| e.to_string())
+    crate::crypto::decrypt_api_key(&encrypted, &password).map_err(|e| e.to_string()).map_err(AppError::legacy)
 }
 
 // ==================== 会话交互与消息（模块 16 / F076–F083） ====================
@@ -1255,7 +1256,7 @@ fn build_skill_prompt(skills: &[crate::db::PrdSkill]) -> Option<String> {
 }
 
 /// 写入会话上下文卡片（`context` 块，前端以卡片形式展示）
-async fn append_context_block(state: &AppState, session: &AgentSession) -> Result<(), String> {
+async fn append_context_block(state: &AppState, session: &AgentSession) -> Result<(), AppError> {
     let ctx = build_message_context(state, session).await;
     let payload = serde_json::json!({
         "mode": session.mode,
@@ -1276,7 +1277,7 @@ async fn append_context_block(state: &AppState, session: &AgentSession) -> Resul
         BlockSpec::new("system", block_type::CONTEXT, Some(payload)),
     )
     .map(|_| ())
-    .map_err(|e| format!("写入上下文卡片失败: {}", e))
+    .map_err(|e| format!("写入上下文卡片失败: {}", e)).map_err(AppError::legacy)
 }
 
 /// 以**结构化（消息）模式**启动会话（F077）。
@@ -1297,7 +1298,7 @@ pub async fn start_structured_session(
     work_dir: Option<String>,
     permission_mode: Option<String>,
     model: Option<String>,
-) -> Result<AgentSession, String> {
+) -> Result<AgentSession, AppError> {
     start_structured_session_inner(
         state.inner(),
         &app,
@@ -1308,7 +1309,7 @@ pub async fn start_structured_session(
         permission_mode,
         model,
     )
-    .await
+    .await.map_err(AppError::legacy)
 }
 
 /// 结构化会话启动的公共实现（`start_structured_session` 与
@@ -1323,9 +1324,9 @@ async fn start_structured_session_inner(
     work_dir: Option<String>,
     permission_mode: Option<String>,
     model: Option<String>,
-) -> Result<AgentSession, String> {
+) -> Result<AgentSession, AppError> {
     if !crate::agent::check_agent_available(&agent_path).await {
-        return Err("Agent 不可用，请先在 Agent 页面执行「刷新检测」".to_string());
+        return Err(AppError::legacy("Agent 不可用，请先在 Agent 页面执行「刷新检测」".to_string()));
     }
 
     let agent_id = AgentService::new(&state.db).resolve_agent_id(&agent_path).await?;
@@ -1510,11 +1511,11 @@ async fn start_structured_session_inner(
         ctx,
         cfg,
     )
-    .await
+    .await.map_err(AppError::legacy)
     {
         let db = state.db.lock().await;
         let _ = db.finish_agent_session(&session.id, "failed", Some(-1));
-        return Err(e);
+        return Err(AppError::legacy(e));
     }
 
     info!(
@@ -1531,7 +1532,7 @@ pub async fn send_session_message(
     app: tauri::AppHandle,
     session_id: String,
     content: String,
-) -> Result<SessionMessage, String> {
+) -> Result<SessionMessage, AppError> {
     let session = {
         let db = state.db.lock().await;
         db.get_agent_session(&session_id)
@@ -1540,7 +1541,7 @@ pub async fn send_session_message(
     };
 
     if !session_driver::is_active(&state.session_registry, &session_id).await {
-        return Err("会话进程未在运行，请重建或续接会话".to_string());
+        return Err(AppError::legacy("会话进程未在运行，请重建或续接会话".to_string()));
     }
 
     let ctx = build_message_context(state.inner(), &session).await;
@@ -1552,7 +1553,7 @@ pub async fn send_session_message(
         &ctx,
         &content,
     )
-    .await
+    .await.map_err(AppError::legacy)
 }
 
 /// 保存会话附件（图片粘贴 / 文件导入）到应用数据目录。
@@ -1565,13 +1566,13 @@ pub async fn save_session_attachment(
     session_id: Option<String>,
     file_name: String,
     contents: Vec<u8>,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, AppError> {
     if contents.is_empty() {
-        return Err("附件内容为空".to_string());
+        return Err(AppError::legacy("附件内容为空".to_string()));
     }
     const MAX_SIZE: usize = 20 * 1024 * 1024;
     if contents.len() > MAX_SIZE {
-        return Err(format!("附件不能超过 {}MB", MAX_SIZE / 1024 / 1024));
+        return Err(AppError::legacy(format!("附件不能超过 {}MB", MAX_SIZE / 1024 / 1024)));
     }
 
     // 文件名清洗：只取 basename 并过滤非法字符，防路径穿越
@@ -1629,7 +1630,7 @@ pub async fn list_session_messages(
     session_id: String,
     before_seq: Option<i64>,
     limit: Option<u32>,
-) -> Result<PagedResult<SessionMessage>, String> {
+) -> Result<PagedResult<SessionMessage>, AppError> {
     let default_limit = {
         let db = state.db.lock().await;
         db.get_setting("session_message_page_size")
@@ -1657,7 +1658,7 @@ pub async fn interrupt_session(
     state: State<'_, AppState>,
     app: tauri::AppHandle,
     session_id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let session = {
         let db = state.db.lock().await;
         db.get_agent_session(&session_id)
@@ -1673,7 +1674,7 @@ pub async fn interrupt_session(
         &session_id,
         &ctx,
     )
-    .await
+    .await.map_err(AppError::legacy)
 }
 
 /// 以新模式/新权限重建会话（F081 / F083）。
@@ -1690,7 +1691,7 @@ pub async fn set_session_mode(
     model: Option<String>,
     allowed_tools: Option<Vec<String>>,
     resend_last: Option<bool>,
-) -> Result<AgentSession, String> {
+) -> Result<AgentSession, AppError> {
     rebuild_structured_session(
         state.inner(),
         &app,
@@ -1701,7 +1702,7 @@ pub async fn set_session_mode(
         allowed_tools,
         resend_last.unwrap_or(false),
     )
-    .await
+    .await.map_err(AppError::legacy)
 }
 
 /// 续接既有 CLI 会话（F082）
@@ -1710,7 +1711,7 @@ pub async fn resume_session(
     state: State<'_, AppState>,
     app: tauri::AppHandle,
     session_id: String,
-) -> Result<AgentSession, String> {
+) -> Result<AgentSession, AppError> {
     rebuild_structured_session(
         state.inner(),
         &app,
@@ -1721,7 +1722,7 @@ pub async fn resume_session(
         None,
         false,
     )
-    .await
+    .await.map_err(AppError::legacy)
 }
 
 /// 重建结构化会话的公共实现
@@ -1735,7 +1736,7 @@ async fn rebuild_structured_session(
     model: Option<String>,
     allowed_tools: Option<Vec<String>>,
     resend_last: bool,
-) -> Result<AgentSession, String> {
+) -> Result<AgentSession, AppError> {
     let session = {
         let db = state.db.lock().await;
         db.get_agent_session(session_id)
@@ -1744,7 +1745,7 @@ async fn rebuild_structured_session(
     };
 
     if session_driver::is_active(&state.session_registry, session_id).await {
-        return Err("会话正在运行，请先中断后再重建".to_string());
+        return Err(AppError::legacy("会话正在运行，请先中断后再重建".to_string()));
     }
 
     let agent_path = session
@@ -1761,7 +1762,7 @@ async fn rebuild_structured_session(
                 .unwrap_or_else(|| session_mode::STRUCTURED.to_string())
         });
     if !agent_adapter::is_structured_mode(Some(&mode)) {
-        return Err("当前仅支持重建为结构化（消息）模式；终端模式请在 Agent 页面启动".to_string());
+        return Err(AppError::legacy("当前仅支持重建为结构化（消息）模式；终端模式请在 Agent 页面启动".to_string()));
     }
 
     let permission_mode = permission_mode.or_else(|| session.permission_mode.clone());
@@ -1841,11 +1842,11 @@ async fn rebuild_structured_session(
         ctx.clone(),
         cfg,
     )
-    .await
+    .await.map_err(AppError::legacy)
     {
         let db = state.db.lock().await;
         let _ = db.finish_agent_session(session_id, "failed", Some(-1));
-        return Err(e);
+        return Err(AppError::legacy(e));
     }
 
     if resend_last {
@@ -1867,7 +1868,7 @@ async fn rebuild_structured_session(
                 &ctx,
                 &content,
             )
-            .await
+            .await.map_err(AppError::legacy)
             {
                 error!("重发上一条指令失败: {}", e);
             }
@@ -1877,7 +1878,7 @@ async fn rebuild_structured_session(
     let db = state.db.lock().await;
     db.get_agent_session(session_id)
         .map_err(|e| e.to_string())?
-        .ok_or_else(|| "会话不存在".to_string())
+        .ok_or_else(|| AppError::NotFound("会话不存在".to_string()))
 }
 
 // ==================== PTY 终端命令 ====================
@@ -1888,10 +1889,10 @@ pub async fn pty_spawn(
     agent_path: String,
     work_dir: String,
     env_vars: Option<Vec<(String, String)>>,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     let svc = PtyService::new(&state.pty_manager);
     let env = env_vars.unwrap_or_default();
-    svc.spawn(&agent_path, &work_dir, env).await
+    svc.spawn(&agent_path, &work_dir, env).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -1899,9 +1900,9 @@ pub async fn pty_write(
     state: State<'_, AppState>,
     session_id: String,
     input: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let svc = PtyService::new(&state.pty_manager);
-    svc.write(&session_id, &input).await
+    svc.write(&session_id, &input).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -1910,24 +1911,24 @@ pub async fn pty_resize(
     session_id: String,
     rows: u16,
     cols: u16,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let svc = PtyService::new(&state.pty_manager);
-    svc.resize(&session_id, rows, cols).await
+    svc.resize(&session_id, rows, cols).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn pty_kill(
     state: State<'_, AppState>,
     session_id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let svc = PtyService::new(&state.pty_manager);
-    svc.kill(&session_id).await
+    svc.kill(&session_id).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn pty_get_sessions(
     state: State<'_, AppState>,
-) -> Result<Vec<crate::pty::PtySessionInfo>, String> {
+) -> Result<Vec<crate::pty::PtySessionInfo>, AppError> {
     let svc = PtyService::new(&state.pty_manager);
     Ok(svc.get_sessions().await)
 }
@@ -1936,7 +1937,7 @@ pub async fn pty_get_sessions(
 pub async fn pty_get_session(
     state: State<'_, AppState>,
     session_id: String,
-) -> Result<Option<crate::pty::PtySessionInfo>, String> {
+) -> Result<Option<crate::pty::PtySessionInfo>, AppError> {
     let svc = PtyService::new(&state.pty_manager);
     Ok(svc.get_session(&session_id).await)
 }
@@ -1958,7 +1959,7 @@ pub struct PtyAttach {
 pub async fn pty_attach(
     state: State<'_, AppState>,
     db_session_id: String,
-) -> Result<PtyAttach, String> {
+) -> Result<PtyAttach, AppError> {
     let (pty_id, replay) = state
         .pty_manager
         .attach_by_db_session(&db_session_id)
@@ -1974,7 +1975,7 @@ pub async fn pty_attach(
 pub async fn pty_reconnect(
     state: State<'_, AppState>,
     db_session_id: String,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     if let Some(pty_id) = state
         .pty_manager
         .find_pty_by_db_session(&db_session_id)
@@ -1990,7 +1991,7 @@ pub async fn pty_reconnect(
             .ok_or_else(|| "会话不存在".to_string())?
     };
     if session.mode.as_deref() == Some(session_mode::STRUCTURED) {
-        return Err("结构化会话不支持终端进程重启".to_string());
+        return Err(AppError::legacy("结构化会话不支持终端进程重启".to_string()));
     }
 
     // 二进制路径：优先会话记录，回退 agents 表
@@ -2012,7 +2013,7 @@ pub async fn pty_reconnect(
         }
     };
     if !crate::agent::check_agent_available(&agent_path).await {
-        return Err(format!("Agent 不可用: {}", agent_path));
+        return Err(AppError::legacy(format!("Agent 不可用: {}", agent_path)));
     }
 
     // 工作目录：会话记录 → 项目路径设置 → 进程 cwd
@@ -2060,29 +2061,29 @@ pub async fn create_project(
     name: String,
     description: Option<String>,
     key: Option<String>,
-) -> Result<Project, String> {
+) -> Result<Project, AppError> {
     // 输入验证
-    validate_project(&name).map_err(|e| e.to_string())?;
+    validate_project(&name)?;
 
     let svc = ProjectService::new(&state.db, &state.cache);
-    svc.create_project(&name, description.as_deref(), key.as_deref()).await
+    svc.create_project(&name, description.as_deref(), key.as_deref()).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn list_projects(
     state: State<'_, AppState>,
-) -> Result<Vec<Project>, String> {
+) -> Result<Vec<Project>, AppError> {
     let svc = ProjectService::new(&state.db, &state.cache);
-    svc.list_projects().await
+    svc.list_projects().await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn get_project(
     state: State<'_, AppState>,
     id: String,
-) -> Result<Option<Project>, String> {
+) -> Result<Option<Project>, AppError> {
     let svc = ProjectService::new(&state.db, &state.cache);
-    svc.get_project(&id).await
+    svc.get_project(&id).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -2093,16 +2094,16 @@ pub async fn update_project(
     description: Option<String>,
     key: Option<String>,
     status: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let svc = ProjectService::new(&state.db, &state.cache);
-    svc.update_project(&id, name.as_deref(), description.as_deref(), key.as_deref(), status.as_deref()).await
+    svc.update_project(&id, name.as_deref(), description.as_deref(), key.as_deref(), status.as_deref()).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn delete_project(
     state: State<'_, AppState>,
     id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let svc = ProjectService::new(&state.db, &state.cache);
 
     // 检查是否有关联数据
@@ -2120,14 +2121,14 @@ pub async fn delete_project(
             .unwrap_or(0);
 
         if req_count > 0 || task_count > 0 || skill_count > 0 || mcp_count > 0 {
-            return Err(format!(
+            return Err(AppError::Business(format!(
                 "项目下有 {} 个需求、{} 个任务、{} 个 Skill 配置和 {} 个 MCP 配置，请先清理",
                 req_count, task_count, skill_count, mcp_count
-            ));
+            )));
         }
     }
 
-    svc.delete_project(&id).await
+    svc.delete_project(&id).await.map_err(AppError::legacy)
 }
 
 // ==================== 项目 Skill 配置命令 ====================
@@ -2136,9 +2137,9 @@ pub async fn delete_project(
 pub async fn list_project_skills(
     state: State<'_, AppState>,
     project_id: String,
-) -> Result<Vec<crate::db::ProjectSkill>, String> {
+) -> Result<Vec<crate::db::ProjectSkill>, AppError> {
     let svc = ProjectService::new(&state.db, &state.cache);
-    svc.list_project_skills(&project_id).await
+    svc.list_project_skills(&project_id).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -2148,18 +2149,18 @@ pub async fn add_project_skill(
     skill_id: String,
     is_default: Option<bool>,
     custom_params: Option<String>,
-) -> Result<crate::db::ProjectSkill, String> {
+) -> Result<crate::db::ProjectSkill, AppError> {
     let svc = ProjectService::new(&state.db, &state.cache);
-    svc.add_project_skill(&project_id, &skill_id, is_default, custom_params.as_deref()).await
+    svc.add_project_skill(&project_id, &skill_id, is_default, custom_params.as_deref()).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn remove_project_skill(
     state: State<'_, AppState>,
     id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let svc = ProjectService::new(&state.db, &state.cache);
-    svc.remove_project_skill(&id).await
+    svc.remove_project_skill(&id).await.map_err(AppError::legacy)
 }
 
 // ==================== 项目 MCP 配置命令 ====================
@@ -2168,9 +2169,9 @@ pub async fn remove_project_skill(
 pub async fn list_project_mcps(
     state: State<'_, AppState>,
     project_id: String,
-) -> Result<Vec<crate::db::ProjectMcp>, String> {
+) -> Result<Vec<crate::db::ProjectMcp>, AppError> {
     let svc = ProjectService::new(&state.db, &state.cache);
-    svc.list_project_mcps(&project_id).await
+    svc.list_project_mcps(&project_id).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -2183,18 +2184,18 @@ pub async fn add_project_mcp(
     is_default: Option<bool>,
     auth_config: Option<String>,
     custom_params: Option<String>,
-) -> Result<crate::db::ProjectMcp, String> {
+) -> Result<crate::db::ProjectMcp, AppError> {
     let svc = ProjectService::new(&state.db, &state.cache);
-    svc.add_project_mcp(&project_id, &mcp_name, &endpoint, description.as_deref(), is_default, auth_config.as_deref(), custom_params.as_deref()).await
+    svc.add_project_mcp(&project_id, &mcp_name, &endpoint, description.as_deref(), is_default, auth_config.as_deref(), custom_params.as_deref()).await.map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn remove_project_mcp(
     state: State<'_, AppState>,
     id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let svc = ProjectService::new(&state.db, &state.cache);
-    svc.remove_project_mcp(&id).await
+    svc.remove_project_mcp(&id).await.map_err(AppError::legacy)
 }
 
 // ==================== 环节 Skill 配置命令 ====================
@@ -2203,10 +2204,10 @@ pub async fn remove_project_mcp(
 pub async fn list_stage_skill_configs(
     state: State<'_, AppState>,
     project_id: String,
-) -> Result<Vec<crate::db::StageSkillConfig>, String> {
+) -> Result<Vec<crate::db::StageSkillConfig>, AppError> {
     let db = state.db.lock().await;
     db.list_stage_skill_configs(&project_id)
-        .map_err(|e| format!("获取环节 Skill 配置失败: {}", e))
+        .map_err(|e| format!("获取环节 Skill 配置失败: {}", e)).map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -2214,10 +2215,10 @@ pub async fn get_stage_skill_config(
     state: State<'_, AppState>,
     project_id: String,
     stage: String,
-) -> Result<Option<crate::db::StageSkillConfig>, String> {
+) -> Result<Option<crate::db::StageSkillConfig>, AppError> {
     let db = state.db.lock().await;
     db.get_stage_skill_config(&project_id, &stage)
-        .map_err(|e| format!("获取环节 Skill 配置失败: {}", e))
+        .map_err(|e| format!("获取环节 Skill 配置失败: {}", e)).map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -2228,24 +2229,24 @@ pub async fn upsert_stage_skill_config(
     skill_id: String,
     is_default: bool,
     custom_params: Option<String>,
-) -> Result<crate::db::StageSkillConfig, String> {
+) -> Result<crate::db::StageSkillConfig, AppError> {
     let db = state.db.lock().await;
     db.upsert_stage_skill_config(&project_id, &stage, &skill_id, is_default, custom_params.as_deref())
-        .map_err(|e| format!("保存环节 Skill 配置失败: {}", e))
+        .map_err(|e| format!("保存环节 Skill 配置失败: {}", e)).map_err(AppError::legacy)
 }
 
 #[tauri::command]
 pub async fn remove_stage_skill_config(
     state: State<'_, AppState>,
     id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let db = state.db.lock().await;
     db.remove_stage_skill_config(&id)
-        .map_err(|e| format!("删除环节 Skill 配置失败: {}", e))
+        .map_err(|e| format!("删除环节 Skill 配置失败: {}", e)).map_err(AppError::legacy)
 }
 
 #[tauri::command]
-pub async fn get_pipeline_stages() -> Result<Vec<serde_json::Value>, String> {
+pub async fn get_pipeline_stages() -> Result<Vec<serde_json::Value>, AppError> {
     use crate::db::PipelineStage;
     Ok(PipelineStage::all().iter().map(|s| {
         serde_json::json!({
@@ -2262,17 +2263,17 @@ pub async fn get_skill_execution_logs(
     state: State<'_, AppState>,
     task_id: Option<String>,
     session_id: Option<String>,
-) -> Result<Vec<crate::db::SkillExecutionLog>, String> {
+) -> Result<Vec<crate::db::SkillExecutionLog>, AppError> {
     let db = state.db.lock().await;
     if let Some(tid) = &task_id {
         db.get_skill_execution_logs_by_task(tid).map_err(|e| {
             error!("获取Skill执行日志失败: {}", e);
-            format!("获取Skill执行日志失败: {}", e)
+            AppError::legacy(format!("获取Skill执行日志失败: {}", e))
         })
     } else if let Some(sid) = &session_id {
         db.get_skill_execution_logs_by_session(sid).map_err(|e| {
             error!("获取Skill执行日志失败: {}", e);
-            format!("获取Skill执行日志失败: {}", e)
+            AppError::legacy(format!("获取Skill执行日志失败: {}", e))
         })
     } else {
         Ok(vec![])
@@ -2283,33 +2284,33 @@ pub async fn get_skill_execution_logs(
 pub async fn get_mcp_execution_logs(
     state: State<'_, AppState>,
     session_id: String,
-) -> Result<Vec<crate::db::McpExecutionLog>, String> {
+) -> Result<Vec<crate::db::McpExecutionLog>, AppError> {
     let db = state.db.lock().await;
     db.get_mcp_execution_logs(&session_id).map_err(|e| {
         error!("获取MCP执行日志失败: {}", e);
-        format!("获取MCP执行日志失败: {}", e)
+        AppError::legacy(format!("获取MCP执行日志失败: {}", e))
     })
 }
 
 #[tauri::command]
 pub async fn get_skill_usage_stats(
     state: State<'_, AppState>,
-) -> Result<Vec<serde_json::Value>, String> {
+) -> Result<Vec<serde_json::Value>, AppError> {
     let db = state.db.lock().await;
     db.get_skill_usage_stats().map_err(|e| {
         error!("获取Skill统计失败: {}", e);
-        format!("获取Skill统计失败: {}", e)
+        AppError::legacy(format!("获取Skill统计失败: {}", e))
     })
 }
 
 #[tauri::command]
 pub async fn get_mcp_usage_stats(
     state: State<'_, AppState>,
-) -> Result<Vec<serde_json::Value>, String> {
+) -> Result<Vec<serde_json::Value>, AppError> {
     let db = state.db.lock().await;
     db.get_mcp_usage_stats().map_err(|e| {
         error!("获取MCP统计失败: {}", e);
-        format!("获取MCP统计失败: {}", e)
+        AppError::legacy(format!("获取MCP统计失败: {}", e))
     })
 }
 
@@ -2320,10 +2321,10 @@ pub async fn get_audit_logs(
     state: State<'_, AppState>,
     limit: Option<i64>,
     entity_type: Option<String>,
-) -> Result<Vec<serde_json::Value>, String> {
+) -> Result<Vec<serde_json::Value>, AppError> {
     let db = state.db.lock().await;
     db.list_audit_logs(limit, entity_type.as_deref())
-        .map_err(|e| format!("获取审计日志失败: {}", e))
+        .map_err(|e| format!("获取审计日志失败: {}", e)).map_err(AppError::legacy)
 }
 
 // ==================== Git 操作命令 ====================
@@ -2331,18 +2332,19 @@ pub async fn get_audit_logs(
 #[tauri::command]
 pub async fn git_get_status(
     work_dir: String,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, AppError> {
     let svc = GitService::new();
-    svc.get_status(&work_dir)
+    svc.get_status(&work_dir).map_err(|e| AppError::legacy(e.to_string()))
 }
 
 #[tauri::command]
 pub async fn git_get_diff(
     work_dir: String,
     file_path: Option<String>,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     let svc = GitService::new();
     svc.get_diff(&work_dir, file_path.as_deref())
+        .map_err(|e| AppError::legacy(e.to_string()))
 }
 
 #[tauri::command]
@@ -2353,7 +2355,7 @@ pub async fn git_create_commit(
     task_id: Option<String>,
     session_id: Option<String>,
     include_untracked: Option<bool>,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, AppError> {
     let svc = GitService::new();
     // 默认包含未跟踪文件，保证 Agent 新建的文件也能被提交
     let result = svc.create_commit(&work_dir, &message, include_untracked.unwrap_or(true))?;
@@ -2396,9 +2398,9 @@ pub async fn git_create_commit(
 pub async fn git_log(
     work_dir: String,
     limit: Option<i32>,
-) -> Result<Vec<serde_json::Value>, String> {
+) -> Result<Vec<serde_json::Value>, AppError> {
     let svc = GitService::new();
-    svc.log(&work_dir, limit)
+    svc.log(&work_dir, limit).map_err(|e| AppError::legacy(e.to_string()))
 }
 
 /// 查询平台内记录的 Git 提交（可按任务或会话过滤）
@@ -2408,10 +2410,10 @@ pub async fn list_git_commits(
     task_id: Option<String>,
     session_id: Option<String>,
     limit: Option<i64>,
-) -> Result<Vec<serde_json::Value>, String> {
+) -> Result<Vec<serde_json::Value>, AppError> {
     let db = state.db.lock().await;
     db.list_git_commits(task_id.as_deref(), session_id.as_deref(), limit)
-        .map_err(|e| format!("获取提交记录失败: {}", e))
+        .map_err(|e| format!("获取提交记录失败: {}", e)).map_err(AppError::legacy)
 }
 
 // ==================== 数据导入导出命令 ====================
@@ -2420,9 +2422,9 @@ pub async fn list_git_commits(
 #[tauri::command]
 pub async fn export_data(
     state: State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, AppError> {
     let svc = DataService::new(&state.db, &state.cache);
-    svc.export_data().await
+    svc.export_data().await.map_err(AppError::legacy)
 }
 
 /// 导入数据快照。
@@ -2435,7 +2437,7 @@ pub async fn import_data(
     payload: String,
     replace: Option<bool>,
     dry_run: Option<bool>,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, AppError> {
     let parsed: serde_json::Value = serde_json::from_str(&payload)
         .map_err(|e| format!("导入内容不是合法 JSON: {}", e))?;
 
@@ -2458,5 +2460,5 @@ pub async fn import_data(
         }
     }
 
-    svc.import_data(&parsed, replace, dry_run).await
+    svc.import_data(&parsed, replace, dry_run).await.map_err(AppError::legacy)
 }
