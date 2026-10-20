@@ -1,6 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Trash2, Edit3, Copy, Zap, FileText, ChevronDown, ChevronUp, X, Save, Activity } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Edit3,
+  Copy,
+  Zap,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  X,
+  Save,
+  Activity,
+  Download,
+  Upload,
+} from "lucide-react";
 import type { PrdSkill } from "../lib/types";
 import {
   listPrdSkills,
@@ -8,6 +22,8 @@ import {
   updatePrdSkill,
   deletePrdSkill,
   createCustomSkillFromBuiltin,
+  exportSkillDefinition,
+  importSkillDefinition,
 } from "../lib/tauri";
 import { showToast } from "../components/Toast";
 
@@ -22,6 +38,12 @@ export default function SkillManagement() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState<PrdSkill | null>(null);
+
+  // 导入 / 导出状态
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportContent, setExportContent] = useState("");
+  const [exportName, setExportName] = useState("");
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   // 表单状态
   const [formData, setFormData] = useState({
@@ -44,6 +66,42 @@ export default function SkillManagement() {
       console.error("加载Skill列表失败:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleExport(skill: PrdSkill) {
+    try {
+      const json = await exportSkillDefinition(skill.id);
+      setExportContent(json);
+      setExportName(skill.name);
+      setShowExportModal(true);
+    } catch (error) {
+      console.error("导出Skill失败:", error);
+      showToast("error", `导出Skill失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // 允许重复选择同一文件
+    if (!file) return;
+    try {
+      const json = await file.text();
+      const imported = await importSkillDefinition(json);
+      showToast("success", `已导入 Skill「${imported.name}」`);
+      await loadSkills();
+    } catch (error) {
+      console.error("导入Skill失败:", error);
+      showToast("error", `导入Skill失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async function handleCopyExport() {
+    try {
+      await navigator.clipboard.writeText(exportContent);
+      showToast("success", "Skill 定义已复制到剪贴板");
+    } catch {
+      showToast("info", "剪贴板不可用，请手动全选复制");
     }
   }
 
@@ -153,10 +211,27 @@ export default function SkillManagement() {
           <h1 className="text-xl font-semibold text-gray-900">Skill 管理</h1>
           <p className="text-sm text-gray-500 mt-0.5">管理 PRD 生成模板和技能配置</p>
         </div>
-        <button onClick={openCreateModal} className="btn-primary">
-          <Plus className="w-4 h-4" />
-          新建 Skill
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => importInputRef.current?.click()}
+            className="btn-secondary flex items-center gap-2"
+            title="从 JSON 定义文件导入 Skill"
+          >
+            <Upload className="w-4 h-4" />
+            导入
+          </button>
+          <button onClick={openCreateModal} className="btn-primary">
+            <Plus className="w-4 h-4" />
+            新建 Skill
+          </button>
+        </div>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".json,application/json"
+          className="hidden"
+          onChange={handleImportFile}
+        />
       </div>
 
       {/* Skill 列表 */}
@@ -241,6 +316,16 @@ export default function SkillManagement() {
                     title="编辑"
                   >
                     <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleExport(skill);
+                    }}
+                    className="p-1.5 hover:bg-gray-100 rounded-lg"
+                    title="导出为可分享的 JSON 定义"
+                  >
+                    <Download className="w-4 h-4" />
                   </button>
                   {!skill.is_builtin && (
                     <button
@@ -442,6 +527,43 @@ export default function SkillManagement() {
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
                 {saving ? "删除中..." : "删除"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 导出 Skill 定义 */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 className="text-lg font-semibold">导出 Skill「{exportName}」</h2>
+              <button onClick={() => setShowExportModal(false)} className="p-1 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              <p className="text-sm text-gray-500">
+                将以下 JSON 定义分享给他人，对方通过「导入」按钮即可复用这个模板。
+              </p>
+              <textarea
+                readOnly
+                value={exportContent}
+                onFocus={(e) => e.currentTarget.select()}
+                className="w-full h-72 p-3 text-xs font-mono border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50">
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+              >
+                关闭
+              </button>
+              <button onClick={handleCopyExport} className="btn-primary flex items-center gap-2">
+                <Copy className="w-4 h-4" />
+                复制到剪贴板
               </button>
             </div>
           </div>

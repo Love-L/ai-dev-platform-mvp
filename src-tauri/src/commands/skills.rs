@@ -179,6 +179,92 @@ pub async fn create_custom_skill_from_builtin(
     svc.create_custom_skill(&parent_id, &name, template.as_deref()).await.map_err(AppError::legacy)
 }
 
+// ==================== 导入 / 导出（模板分享） ====================
+
+use serde::{Deserialize, Serialize};
+
+/// Skill 定义交换格式（导入 / 导出 / 跨机器分享通用）。
+/// 只携带模板本体，不携带血缘与统计——导入后作为独立的自定义 Skill 起步。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillDefinition {
+    pub schema_version: u32,
+    pub name: String,
+    pub skill_type: String,
+    pub description: Option<String>,
+    pub template: String,
+    /// 导出来源：`builtin` / `custom`（仅供展示，不参与导入逻辑）
+    pub exported_from: String,
+    pub exported_at: String,
+}
+
+pub const SKILL_DEF_SCHEMA_VERSION: u32 = 1;
+
+/// 导出 Skill 为可分享的 JSON 定义
+#[tauri::command]
+pub async fn export_skill_definition(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<String, AppError> {
+    let svc = PrdSkillService::new(&state.db);
+    let skill = svc
+        .get_skill(&id)
+        .await
+        .map_err(AppError::legacy)?
+        .ok_or_else(|| AppError::NotFound(format!("Skill {} 不存在", id)))?;
+
+    let def = SkillDefinition {
+        schema_version: SKILL_DEF_SCHEMA_VERSION,
+        name: skill.name,
+        skill_type: skill.skill_type,
+        description: skill.description,
+        template: skill.template,
+        exported_from: if skill.is_builtin { "builtin" } else { "custom" }.to_string(),
+        exported_at: chrono::Utc::now().to_rfc3339(),
+    };
+    serde_json::to_string_pretty(&def).map_err(AppError::from)
+}
+
+/// 从 JSON 定义导入为自定义 Skill（名称冲突自动追加序号）
+#[tauri::command]
+pub async fn import_skill_definition(
+    state: State<'_, AppState>,
+    json: String,
+) -> Result<PrdSkill, AppError> {
+    let def: SkillDefinition = serde_json::from_str(&json)
+        .map_err(|e| AppError::Validation(format!("Skill 定义 JSON 解析失败: {}", e)))?;
+    if def.schema_version != SKILL_DEF_SCHEMA_VERSION {
+        return Err(AppError::Validation(format!(
+            "不支持的 Skill 定义版本 {}（当前支持 v{}）",
+            def.schema_version, SKILL_DEF_SCHEMA_VERSION
+        )));
+    }
+    if def.name.trim().is_empty() || def.template.trim().is_empty() {
+        return Err(AppError::Validation(
+            "Skill 定义缺少 name 或 template 字段".to_string(),
+        ));
+    }
+
+    let svc = PrdSkillService::new(&state.db);
+    let existing = svc.list_skills().await.map_err(AppError::legacy)?;
+
+    let mut name = def.name.trim().to_string();
+    if existing.iter().any(|s| s.name == name) {
+        let mut n = 2;
+        loop {
+            let candidate = format!("{} ({})", def.name.trim(), n);
+            if !existing.iter().any(|s| s.name == candidate) {
+                name = candidate;
+                break;
+            }
+            n += 1;
+        }
+    }
+
+    svc.create_skill(&name, &def.skill_type, def.description.as_deref(), &def.template)
+        .await
+        .map_err(AppError::legacy)
+}
+
 // ==================== 环节 Skill 配置命令 ====================
 
 #[tauri::command]
@@ -259,4 +345,41 @@ pub async fn get_skill_usage_stats(
         error!("获取Skill统计失败: {}", e);
         AppError::legacy(format!("获取Skill统计失败: {}", e))
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn skill_definition_serde_roundtrip() {
+        let def = SkillDefinition {
+            schema_version: SKILL_DEF_SCHEMA_VERSION,
+            name: "测试模板".to_string(),
+            skill_type: "feature".to_string(),
+            description: Some("描述".to_string()),
+            template: "## Prompt\n正文 {requirement}".to_string(),
+            exported_from: "custom".to_string(),
+            exported_at: "2026-10-20T00:00:00Z".to_string(),
+        };
+        let json = serde_json::to_string_pretty(&def).unwrap();
+        let back: SkillDefinition = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, def.name);
+        assert_eq!(back.template, def.template);
+        assert_eq!(back.schema_version, SKILL_DEF_SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn skill_definition_rejects_future_schema() {
+        let json = r#"{
+            "schema_version": 99, "name": "x", "skill_type": "feature",
+            "description": null, "template": "t",
+            "exported_from": "custom", "exported_at": ""
+        }"#;
+        let def: SkillDefinition = serde_json::from_str(json).unwrap();
+        assert_ne!(
+            def.schema_version, SKILL_DEF_SCHEMA_VERSION,
+            "未来版本应在命令层被拒绝"
+        );
+    }
 }

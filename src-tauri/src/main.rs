@@ -274,6 +274,8 @@ fn main() {
             commands::update_prd_skill,
             commands::delete_prd_skill,
             commands::create_custom_skill_from_builtin,
+            commands::export_skill_definition,
+            commands::import_skill_definition,
             // Skill 自进化
             commands::analyze_skills,
             commands::list_skill_suggestions,

@@ -456,6 +456,16 @@ export async function createCustomSkillFromBuiltin(
   return invoke("create_custom_skill_from_builtin", { parentId, name, template });
 }
 
+/** 导出 Skill 为可分享的 JSON 定义（模板分享） */
+export async function exportSkillDefinition(id: string): Promise<string> {
+  return invoke("export_skill_definition", { id });
+}
+
+/** 从 JSON 定义导入为自定义 Skill（名称冲突自动追加序号） */
+export async function importSkillDefinition(json: string): Promise<PrdSkill> {
+  return invoke("import_skill_definition", { json });
+}
+
 // ==================== Skill 自进化 ====================
 
 /** L1 诊断：跑规则 + 静态体检 + 振荡检测，建议落库并返回全部建议 */
