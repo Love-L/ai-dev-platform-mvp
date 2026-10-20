@@ -42,3 +42,6 @@ test-results/
 *.swp
 *.swo
 *~
+
+# 本地 lint 报告
+eslint-report.json
