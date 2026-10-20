@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useThemeStore } from "../stores/themeStore";
 import { getMonitorData } from "../lib/tauri";
+import { useI18n, LOCALES } from "../lib/i18n";
 
 interface MonitorData {
   cpu_usage: number;
@@ -28,34 +29,38 @@ interface MonitorData {
   uptime_seconds: number;
 }
 
+/** 导航定义：labelKey 为 i18n key，label 为中文源文案（fallback） */
 const navSections = [
   {
+    labelKey: "nav.workspace",
     label: "工作区",
     items: [
-      { to: "/", icon: LayoutDashboard, label: "工作台" },
-      { to: "/projects", icon: Folder, label: "项目管理" },
-      { to: "/requirements", icon: FileText, label: "需求管理" },
-      { to: "/board", icon: Columns, label: "任务看板" },
-      { to: "/agents", icon: Bot, label: "Agent" },
-      { to: "/sessions", icon: Terminal, label: "会话管理" },
-      { to: "/skills", icon: Zap, label: "Skill 管理" },
-      { to: "/commits", icon: GitCommit, label: "代码提交" },
+      { to: "/", icon: LayoutDashboard, labelKey: "nav.dashboard", label: "工作台" },
+      { to: "/projects", icon: Folder, labelKey: "nav.projects", label: "项目管理" },
+      { to: "/requirements", icon: FileText, labelKey: "nav.requirements", label: "需求管理" },
+      { to: "/board", icon: Columns, labelKey: "nav.board", label: "任务看板" },
+      { to: "/agents", icon: Bot, labelKey: "nav.agents", label: "Agent" },
+      { to: "/sessions", icon: Terminal, labelKey: "nav.sessions", label: "会话管理" },
+      { to: "/skills", icon: Zap, labelKey: "nav.skills", label: "Skill 管理" },
+      { to: "/commits", icon: GitCommit, labelKey: "nav.commits", label: "代码提交" },
     ],
   },
   {
+    labelKey: "nav.data",
     label: "数据",
     items: [
-      { to: "/statistics", icon: BarChart3, label: "统计报表" },
-      { to: "/cost", icon: Coins, label: "Token 消耗" },
-      { to: "/audit-log", icon: History, label: "审计日志" },
-      { to: "/import-export", icon: Download, label: "导入导出" },
-      { to: "/system-monitor", icon: Activity, label: "系统监控" },
+      { to: "/statistics", icon: BarChart3, labelKey: "nav.statistics", label: "统计报表" },
+      { to: "/cost", icon: Coins, labelKey: "nav.cost", label: "Token 消耗" },
+      { to: "/audit-log", icon: History, labelKey: "nav.auditLog", label: "审计日志" },
+      { to: "/import-export", icon: Download, labelKey: "nav.importExport", label: "导入导出" },
+      { to: "/system-monitor", icon: Activity, labelKey: "nav.systemMonitor", label: "系统监控" },
     ],
   },
 ];
 
 export default function Layout() {
   const { theme: _theme } = useThemeStore();
+  const { locale, setLocale, t } = useI18n();
   const [monitorData, setMonitorData] = useState<MonitorData | null>(null);
 
   useEffect(() => {
@@ -113,7 +118,7 @@ export default function Layout() {
                 className="px-2.5 mb-1 text-[10px] font-semibold uppercase tracking-wider"
                 style={{ color: "var(--color-text-tertiary)" }}
               >
-                {section.label}
+                {t(section.labelKey, section.label)}
               </p>
               <div className="space-y-0.5">
                 {section.items.map((item) => (
@@ -140,7 +145,7 @@ export default function Layout() {
                           }}
                           strokeWidth={1.75}
                         />
-                        <span>{item.label}</span>
+                        <span>{t(item.labelKey, item.label)}</span>
                       </>
                     )}
                   </NavLink>
@@ -163,8 +168,28 @@ export default function Layout() {
             })}
           >
             <Settings className="w-4 h-4" style={{ color: "var(--color-text-tertiary)" }} strokeWidth={1.75} />
-            <span>设置</span>
+            <span>{t("nav.settings", "设置")}</span>
           </NavLink>
+          {/* 语言切换 */}
+          <div
+            className="flex items-center gap-1 px-2.5 pt-2 mt-1 border-t"
+            style={{ borderColor: "var(--color-border-subtle)" }}
+          >
+            {LOCALES.map((l) => (
+              <button
+                key={l.value}
+                onClick={() => setLocale(l.value)}
+                className="px-2 py-[3px] text-[11px] font-medium rounded-md transition-colors"
+                style={{
+                  background: locale === l.value ? "var(--color-primary-subtle)" : "transparent",
+                  color: locale === l.value ? "var(--color-primary)" : "var(--color-text-tertiary)",
+                }}
+                title={l.value === "zh-CN" ? "切换为中文" : "Switch to English"}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
         </div>
       </aside>
 
@@ -187,7 +212,7 @@ export default function Layout() {
         >
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span>就绪</span>
+            <span>{t("status.ready", "就绪")}</span>
           </div>
           <div className="flex items-center gap-3.5">
             {monitorData && (

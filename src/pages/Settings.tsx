@@ -3,9 +3,11 @@ import { Save, Key, FolderOpen, Info, FileText, ChevronDown, ChevronUp, Terminal
 import { listPrdSkills, getAgents } from "../lib/tauri";
 import type { PrdSkill } from "../lib/types";
 import { useSettingsStore } from "../stores";
+import { useI18n } from "../lib/i18n";
 
 export default function Settings() {
   const { fetchSettings, saveSetting } = useSettingsStore();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [skills, setSkills] = useState<PrdSkill[]>([]);
@@ -158,7 +160,7 @@ export default function Settings() {
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary">
           <Save className="w-4 h-4" />
-          {saving ? "保存中..." : "保存设置"}
+          {saving ? t("settings.saving", "保存中...") : t("settings.save", "保存设置")}
         </button>
       </div>
 
@@ -216,7 +218,7 @@ export default function Settings() {
         </div>
 
         <div>
-          <label className="label">最大并发会话数</label>
+          <label className="label">{t("settings.maxSessions", "最大并发会话数")}</label>
           <input
             type="number"
             min={1}
@@ -226,7 +228,10 @@ export default function Settings() {
             className="input"
           />
           <p className="text-xs mt-1.5" style={{ color: "var(--color-text-tertiary)" }}>
-            结构化 Agent 会话的同时运行上限（默认 3，范围 1–16），超出时新会话会被拒绝
+            {t(
+              "settings.maxSessionsHint",
+              "结构化 Agent 会话的同时运行上限（默认 3，范围 1–16），超出时新会话会被拒绝",
+            )}
           </p>
         </div>
 
@@ -394,7 +399,7 @@ export default function Settings() {
         <div className="flex items-center gap-2 mb-3">
           <RefreshCw className="w-4 h-4" style={{ color: "var(--color-text-tertiary)" }} />
           <h3 className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>
-            应用更新
+            {t("settings.appUpdate", "应用更新")}
           </h3>
         </div>
         <div className="flex items-center gap-3">
@@ -404,7 +409,7 @@ export default function Settings() {
             className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
             style={{ background: "var(--color-bg-subtle)", color: "var(--color-text)" }}
           >
-            {updateChecking ? "检查中..." : "检查更新"}
+            {updateChecking ? t("settings.checking", "检查中...") : t("settings.checkUpdate", "检查更新")}
           </button>
           {updateMessage && (
             <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
