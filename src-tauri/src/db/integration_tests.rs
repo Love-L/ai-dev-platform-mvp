@@ -453,6 +453,59 @@ fn legacy_plaintext_setting_still_readable() {
     );
 }
 
+/// 历史"前端固定口令层"数据：读取时透明解封并以本地 keystore 重新封存。
+#[test]
+fn legacy_frontend_encrypted_key_is_migrated_on_read() {
+    let t = TempDb::new("secret-legacy-frontend");
+    let secret = *t.db.secret_key.as_ref().expect("测试库应有 keystore");
+
+    // 模拟旧版设置页写入：先用历史口令加密，再被后端 keystore 封存
+    let blob = crate::crypto::encrypt_api_key(
+        "sk-ant-real-key",
+        crate::crypto::LEGACY_SETTING_PASSWORD,
+    )
+    .unwrap();
+    let sealed = crate::crypto::encrypt_secret(&blob, &secret).unwrap();
+    settings::set_setting(&t.db.conn, "claude_api_key", &sealed).unwrap();
+
+    // 读取应直接得到真实 Key（LLM 链路拿到的不再是坏 blob）
+    assert_eq!(
+        t.db.get_setting("claude_api_key").unwrap().unwrap(),
+        "sk-ant-real-key"
+    );
+
+    // 读取后库中应已重新封存为"纯本地 keystore 密文"，历史口令层不复存在
+    let raw = settings::get_setting(&t.db.conn, "claude_api_key")
+        .unwrap()
+        .unwrap();
+    assert!(crate::crypto::is_encrypted_secret(&raw));
+    let unsealed = crate::crypto::decrypt_secret(&raw, &secret).unwrap();
+    assert_eq!(unsealed, "sk-ant-real-key");
+}
+
+/// keystore 不可用时：敏感项写入必须报错，绝不落明文。
+#[test]
+fn sensitive_setting_write_is_refused_without_keystore() {
+    let mut t = TempDb::new("secret-no-keystore");
+    t.db.secret_key = None;
+
+    let err = t.db.set_setting("claude_api_key", "sk-ant-plain");
+    assert!(err.is_err(), "keystore 缺失时敏感项写入必须失败");
+
+    // 库中不应出现明文
+    let raw = settings::get_setting(&t.db.conn, "claude_api_key").unwrap();
+    assert!(raw.is_none(), "拒绝写入后不应存在该设置项");
+
+    // 读取侧：keystore 缺失时密文不可解 → 返回 None 而非密文本身
+    settings::set_setting(
+        &t.db.conn,
+        "claude_api_key",
+        "enc:v1:AAAAAAAAAAAAAAAA",
+    )
+    .unwrap();
+    assert_eq!(t.db.get_setting("claude_api_key").unwrap(), None);
+}
+
 // ==================== 数据库备份 ====================
 
 #[test]

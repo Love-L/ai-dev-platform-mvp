@@ -26,7 +26,8 @@ const SENSITIVE_SETTING_KEYS: &[&str] = &["claude_api_key"];
 
 pub struct Database {
     conn: Connection,
-    /// 本地密钥：用于敏感设置项的静态加密。不可用时退化为明文存储。
+    /// 本地密钥：用于敏感设置项的静态加密。
+    /// 不可用时**拒绝**敏感项的读写（写报错、读返回 None），绝不降级为明文。
     secret_key: Option<[u8; 32]>,
 }
 
@@ -49,7 +50,7 @@ impl Database {
             Some(dir) => match crate::crypto::load_or_create_key(dir) {
                 Ok(key) => Some(key),
                 Err(e) => {
-                    tracing::warn!("加载本地密钥失败，敏感设置将按明文存储: {}", e);
+                    tracing::warn!("加载本地密钥失败，敏感设置项将拒绝读写（不降级明文）: {}", e);
                     None
                 }
             },
@@ -898,7 +899,7 @@ impl Database {
         &self,
         requirement_id: &str,
         limit: i64,
-    ) -> Result<Vec<(String, String, Option<String>, Option<String>, String)>> {
+    ) -> Result<Vec<requirements::RequirementHistoryRow>> {
         requirements::list_requirement_history(&self.conn, requirement_id, limit)
     }
 
@@ -1556,36 +1557,72 @@ impl Database {
         Ok(raw.and_then(|value| self.unseal_setting(key, value)))
     }
 
-    /// 写入设置项。敏感项自动加密后存储（兼容历史明文数据）。
+    /// 写入设置项。敏感项**必须**加密落盘：
+    /// - 本地 keystore 不可用或加密失败时返回错误，**拒绝明文写入**（禁止静默降级）；
+    /// - 历史明文数据在下一次写入时自动完成封存迁移。
     pub fn set_setting(&self, key: &str, value: &str) -> Result<()> {
         if SENSITIVE_SETTING_KEYS.contains(&key) && !crate::crypto::is_encrypted_secret(value) {
-            if let Some(ref secret) = self.secret_key {
-                match crate::crypto::encrypt_secret(value, secret) {
-                    Ok(sealed) => return settings::set_setting(&self.conn, key, &sealed),
-                    Err(e) => tracing::warn!("敏感设置加密失败，按明文存储: {}", e),
-                }
-            }
+            let secret = self.secret_key.as_ref().ok_or_else(|| {
+                rusqlite::Error::InvalidParameterName(
+                    "本地加密密钥不可用，拒绝明文写入敏感设置项".to_string(),
+                )
+            })?;
+            let sealed = crate::crypto::encrypt_secret(value, secret).map_err(|e| {
+                rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::other(
+                    format!("敏感设置加密失败: {e}"),
+                )))
+            })?;
+            return settings::set_setting(&self.conn, key, &sealed);
         }
 
         settings::set_setting(&self.conn, key, value)
     }
 
-    /// 敏感设置项解密（非敏感项或历史明文原样返回）
+    /// 敏感设置项解密。
+    ///
+    /// 返回 `None` 表示密文无法解开（如数据库从其它机器导入、keystore 丢失），
+    /// 调用方应提示用户重新配置，而不是把密文当明文使用。
     fn unseal_setting(&self, key: &str, value: String) -> Option<String> {
         if !SENSITIVE_SETTING_KEYS.contains(&key) || !crate::crypto::is_encrypted_secret(&value) {
-            return Some(value);
+            // 历史明文（或历史"前端固定口令加密层"）兼容路径
+            return Some(self.migrate_legacy_secret(key, value));
         }
 
         let Some(ref secret) = self.secret_key else {
-            return Some(value);
+            tracing::warn!("设置项 {} 无法解密：本地加密密钥不可用", key);
+            return None;
         };
 
         match crate::crypto::decrypt_secret(&value, secret) {
-            Some(plain) => Some(plain),
+            Some(plain) => Some(self.migrate_legacy_secret(key, plain)),
             None => {
                 tracing::warn!("设置项 {} 解密失败（密钥不匹配），请重新配置", key);
                 None
             }
+        }
+    }
+
+    /// 历史数据透明迁移：
+    ///
+    /// 旧版前端用固定口令做了 PBKDF2+AES-GCM 加密（base64(salt+nonce+ct) 形态），
+    /// 后端拿到它无法直接当 API Key 使用。此处识别该形态 → 用历史口令解开 →
+    /// 立即以当前 keystore 重新封存 → 返回明文。解不开则按明文原样返回
+    /// （随机明文恰好撞上 base64 形态时的兜底，避免误伤有效 Key）。
+    fn migrate_legacy_secret(&self, key: &str, value: String) -> String {
+        if !crate::crypto::is_encrypted_format(&value) {
+            return value;
+        }
+        match crate::crypto::decrypt_api_key(&value, crate::crypto::LEGACY_SETTING_PASSWORD) {
+            Ok(plain) => {
+                info!("设置项 {} 历史加密层已解封，正在以本地 keystore 重新封存", key);
+                if let Some(ref secret) = self.secret_key {
+                    if let Ok(sealed) = crate::crypto::encrypt_secret(&plain, secret) {
+                        let _ = settings::set_setting(&self.conn, key, &sealed);
+                    }
+                }
+                plain
+            }
+            Err(_) => value,
         }
     }
 
@@ -1819,7 +1856,7 @@ impl Database {
                 SUM(CASE WHEN task_type = 'bug_fix' THEN 1 ELSE 0 END) as bug_fix
             FROM tasks"
         )?;
-        Ok(stmt.query_row([], |row| {
+        stmt.query_row([], |row| {
             Ok((
                 row.get(0)?,
                 row.get(1)?,
@@ -1829,7 +1866,7 @@ impl Database {
                 row.get(5)?,
                 row.get(6)?,
             ))
-        })?)
+        })
     }
 
     /// 获取需求总数

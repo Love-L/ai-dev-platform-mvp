@@ -14,6 +14,11 @@ const SALT_LEN: usize = 16;
 const NONCE_LEN: usize = 12;
 const KEY_LEN: usize = 32;
 
+/// 历史"前端固定口令"层的口令，**仅**用于解封旧数据（见
+/// `db::Database::migrate_legacy_secret`），新数据一律走本地 keystore。
+/// 设置页保存链路已不再使用该口令（曾导致加密形同虚设 + LLM 拿到坏 Key）。
+pub const LEGACY_SETTING_PASSWORD: &str = "ace-default-password";
+
 /// 从密码派生 AES-256 密钥
 fn derive_key(password: &[u8], salt: &[u8]) -> [u8; KEY_LEN] {
     let mut key = [0u8; KEY_LEN];
@@ -101,35 +106,191 @@ pub const KEYSTORE_FILE: &str = "keystore.key";
 /// 本模块产生的密文前缀，用于区分密文与历史明文
 pub const SECRET_PREFIX: &str = "enc:v1:";
 
+/// keystore 落盘封装格式魔数（Windows：魔数 + DPAPI 密文；Unix：裸 32 字节 + 0600）
+#[cfg(windows)]
+const KEYSTORE_MAGIC: &[u8; 8] = b"ACEKST1\0";
+
+/// Windows 落盘保护：调用 DPAPI（CryptProtectData / CryptUnprotectData），
+/// 把 keystore 绑定到当前 Windows 用户。仅拷走应用数据目录（数据库 + keystore）
+/// 而不带用户凭据时无法解密，堵住"整目录被复制即失守"的缺口。
+#[cfg(windows)]
+mod at_rest {
+    #[repr(C)]
+    struct DataBlob {
+        cb_data: u32,
+        pb_data: *mut u8,
+    }
+
+    #[link(name = "crypt32")]
+    extern "system" {
+        fn CryptProtectData(
+            data_in: *const DataBlob,
+            data_descr: *const u16,
+            optional_entropy: *const u16,
+            reserved: *mut core::ffi::c_void,
+            prompt_struct: *mut core::ffi::c_void,
+            flags: u32,
+            data_out: *mut DataBlob,
+        ) -> i32;
+        fn CryptUnprotectData(
+            data_in: *const DataBlob,
+            data_descr: *mut *mut u16,
+            optional_entropy: *const u16,
+            reserved: *mut core::ffi::c_void,
+            prompt_struct: *mut core::ffi::c_void,
+            flags: u32,
+            data_out: *mut DataBlob,
+        ) -> i32;
+    }
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn LocalFree(mem: *mut core::ffi::c_void) -> *mut core::ffi::c_void;
+    }
+
+    const CRYPTPROTECT_UI_FORBIDDEN: u32 = 0x1;
+
+    unsafe fn blob_to_vec(blob: &DataBlob) -> Vec<u8> {
+        if blob.pb_data.is_null() || blob.cb_data == 0 {
+            return Vec::new();
+        }
+        let out = std::slice::from_raw_parts(blob.pb_data, blob.cb_data as usize).to_vec();
+        LocalFree(blob.pb_data as *mut core::ffi::c_void);
+        out
+    }
+
+    pub fn protect(plain: &[u8]) -> std::io::Result<Vec<u8>> {
+        let input = DataBlob {
+            cb_data: plain.len() as u32,
+            pb_data: plain.as_ptr() as *mut u8,
+        };
+        let mut output = DataBlob {
+            cb_data: 0,
+            pb_data: std::ptr::null_mut(),
+        };
+        let ok = unsafe {
+            CryptProtectData(
+                &input,
+                std::ptr::null(),
+                std::ptr::null(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                CRYPTPROTECT_UI_FORBIDDEN,
+                &mut output,
+            )
+        };
+        if ok == 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(unsafe { blob_to_vec(&output) })
+    }
+
+    pub fn unprotect(data: &[u8]) -> std::io::Result<Vec<u8>> {
+        let input = DataBlob {
+            cb_data: data.len() as u32,
+            pb_data: data.as_ptr() as *mut u8,
+        };
+        let mut output = DataBlob {
+            cb_data: 0,
+            pb_data: std::ptr::null_mut(),
+        };
+        let ok = unsafe {
+            CryptUnprotectData(
+                &input,
+                std::ptr::null_mut(),
+                std::ptr::null(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                CRYPTPROTECT_UI_FORBIDDEN,
+                &mut output,
+            )
+        };
+        if ok == 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(unsafe { blob_to_vec(&output) })
+    }
+}
+
+/// 把 32 字节密钥编码为落盘形态。
+#[cfg(windows)]
+fn encode_key_at_rest(key: &[u8; KEY_LEN]) -> std::io::Result<Vec<u8>> {
+    let wrapped = at_rest::protect(key)?;
+    let mut payload = Vec::with_capacity(KEYSTORE_MAGIC.len() + wrapped.len());
+    payload.extend_from_slice(KEYSTORE_MAGIC);
+    payload.extend_from_slice(&wrapped);
+    Ok(payload)
+}
+
+#[cfg(not(windows))]
+fn encode_key_at_rest(key: &[u8; KEY_LEN]) -> std::io::Result<Vec<u8>> {
+    Ok(key.to_vec())
+}
+
 /// 读取或创建本地密钥。
 ///
-/// 密钥为 32 字节随机值，存放于 `dir/keystore.key`。
-/// 说明：这是"静态加密"——数据库文件被单独复制时无法直接读出明文，
-/// 但若攻击者同时拿到密钥文件仍可解密；更严格的方案应接入系统钥匙串。
+/// - Windows：文件为 `ACEKST1` 魔数 + DPAPI 密文（绑定当前 Windows 用户）；
+///   历史裸 32 字节格式读取成功后就地升级为封装格式。
+/// - Unix：裸 32 字节 + `0600` 权限。
+///
+/// 文件存在但内容无效时返回错误，**不静默重建**（静默轮换密钥等于放弃
+/// 既有密文的可读性）。读取失败（DPAPI 解封失败等）同样上抛，由调用方
+/// 决定降级策略——本项目对敏感项的策略是拒绝读写而非明文。
 pub fn load_or_create_key(dir: &std::path::Path) -> std::io::Result<[u8; KEY_LEN]> {
     let path = dir.join(KEYSTORE_FILE);
 
-    if let Ok(bytes) = std::fs::read(&path) {
-        if bytes.len() == KEY_LEN {
-            let mut key = [0u8; KEY_LEN];
-            key.copy_from_slice(&bytes);
-            return Ok(key);
+    match std::fs::read(&path) {
+        Ok(bytes) => {
+            #[cfg(windows)]
+            {
+                if bytes.starts_with(KEYSTORE_MAGIC) {
+                    let plain = at_rest::unprotect(&bytes[KEYSTORE_MAGIC.len()..])?;
+                    if plain.len() != KEY_LEN {
+                        return Err(std::io::Error::other(
+                            "keystore.key 内容无效（DPAPI 解封后长度错误）",
+                        ));
+                    }
+                    let mut key = [0u8; KEY_LEN];
+                    key.copy_from_slice(&plain);
+                    return Ok(key);
+                }
+            }
+            if bytes.len() == KEY_LEN {
+                let mut key = [0u8; KEY_LEN];
+                key.copy_from_slice(&bytes);
+                // 历史裸格式：Windows 下就地升级为 DPAPI 封装（失败保留原文件，下次再试）
+                #[cfg(windows)]
+                {
+                    match encode_key_at_rest(&key) {
+                        Ok(payload) => {
+                            if std::fs::write(&path, payload).is_ok() {
+                                tracing::info!("keystore.key 已升级为 DPAPI 封装格式");
+                            }
+                        }
+                        Err(e) => tracing::warn!("keystore.key DPAPI 升级失败（保留原格式）: {}", e),
+                    }
+                }
+                return Ok(key);
+            }
+            Err(std::io::Error::other("keystore.key 内容无效（长度不匹配）"))
         }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            let mut key = [0u8; KEY_LEN];
+            OsRng.fill_bytes(&mut key);
+
+            std::fs::create_dir_all(dir)?;
+            std::fs::write(&path, encode_key_at_rest(&key)?)?;
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+            }
+
+            Ok(key)
+        }
+        Err(e) => Err(e),
     }
-
-    let mut key = [0u8; KEY_LEN];
-    OsRng.fill_bytes(&mut key);
-
-    std::fs::create_dir_all(dir)?;
-    std::fs::write(&path, key)?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
-    }
-
-    Ok(key)
 }
 
 /// 使用本地密钥加密，返回带 `enc:v1:` 前缀的密文

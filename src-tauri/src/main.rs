@@ -2,6 +2,9 @@
 // 基于 Tauri 2.0 + React + SQLite
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// 服务层方法普遍携带多个 Option 字段（批量更新/查询入参），逐个改造为参数
+// 结构体收益有限且易引入回归，crate 级放行 too_many_arguments 由 review 把关。
+#![allow(clippy::too_many_arguments)]
 
 mod db;
 mod commands;
@@ -19,6 +22,7 @@ mod system_monitor;
 mod pagination;
 mod agent_adapter;
 mod session_driver;
+mod fatal;
 
 use db::Database;
 use std::sync::Arc;
@@ -54,7 +58,16 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             // 初始化数据库
-            let app_dir = app.path().app_data_dir().expect("Failed to get app data dir");
+            let app_dir = match app.path().app_data_dir() {
+                Ok(dir) => dir,
+                Err(e) => fatal::show_fatal_and_exit(
+                    "ACE 无法启动",
+                    &format!(
+                        "无法确定应用数据目录：{}\n\n请以当前用户重新登录系统后重试。",
+                        e
+                    ),
+                ),
+            };
             std::fs::create_dir_all(&app_dir).ok();
 
             let db_path = app_dir.join("database.db");
@@ -70,9 +83,28 @@ fn main() {
                     // 尝试备份损坏的数据库并重新创建（带时间戳，纳入备份轮转）
                     let ts = chrono::Utc::now().format("%Y%m%d%H%M%S");
                     let backup_path = app_dir.join(format!("database.db.bak.{}", ts));
-                    let _ = std::fs::copy(&db_path, &backup_path);
+                    let backup_ok = std::fs::copy(&db_path, &backup_path).is_ok();
                     info!("已备份损坏数据库到: {:?}", backup_path);
-                    Database::new(&db_path).expect("数据库重建也失败，无法继续")
+                    match Database::new(&db_path) {
+                        Ok(db) => {
+                            info!("数据库已重建（原数据已备份）");
+                            db
+                        }
+                        Err(e2) => fatal::show_fatal_and_exit(
+                            "数据库无法恢复",
+                            &format!(
+                                "数据库初始化失败：{e}\n\n自动重建也失败：{e2}\n\n\
+                                 损坏文件备份：{}\n\
+                                 处置建议：确认磁盘可写、杀毒软件未锁定文件后重启；\n\
+                                 若仍失败，可退出应用后删除 database.db（应用会自动重建空库）。",
+                                if backup_ok {
+                                    backup_path.display().to_string()
+                                } else {
+                                    "备份失败（文件可能已被占用）".to_string()
+                                }
+                            ),
+                        ),
+                    }
                 }
             };
 

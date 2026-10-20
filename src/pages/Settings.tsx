@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Save, Key, FolderOpen, Info, FileText, ChevronDown, ChevronUp, Terminal } from "lucide-react";
-import { listPrdSkills, encryptApiKey, decryptApiKey, getAgents } from "../lib/tauri";
+import { listPrdSkills, getAgents } from "../lib/tauri";
 import type { PrdSkill } from "../lib/types";
 import { useSettingsStore } from "../stores";
 
@@ -32,19 +32,9 @@ export default function Settings() {
       await fetchSettings(keys);
 
       // Read fresh values from the store after batch fetch
+      // API Key 由后端 keystore 统一解封（含历史数据的透明迁移），前端直接使用明文
       const fresh = useSettingsStore.getState().settings;
-      const encryptedKey = fresh["claude_api_key"] || "";
-
-      // 尝试解密API Key
-      if (encryptedKey) {
-        try {
-          const decryptedKey = await decryptApiKey(encryptedKey, "ace-default-password");
-          setApiKey(decryptedKey);
-        } catch {
-          // 如果解密失败，可能是明文存储的旧数据，直接使用
-          setApiKey(encryptedKey);
-        }
-      }
+      setApiKey(fresh["claude_api_key"] || "");
 
       setProjectName(fresh["project_name"] || "默认项目");
       setProjectPath(fresh["project_path"] || "");
@@ -82,14 +72,9 @@ export default function Settings() {
   async function handleSave() {
     setSaving(true);
     try {
-      // 加密API Key后再保存
-      let encryptedApiKey = apiKey;
-      if (apiKey) {
-        encryptedApiKey = await encryptApiKey(apiKey, "ace-default-password");
-      }
-
+      // 明文交由后端 set_setting 用本地 keystore 加密落盘（enc:v1:）
       await Promise.all([
-        saveSetting("claude_api_key", encryptedApiKey),
+        saveSetting("claude_api_key", apiKey),
         saveSetting("project_name", projectName),
         saveSetting("project_path", projectPath),
         saveSetting("commit_template", commitTemplate),
