@@ -1,0 +1,46 @@
+[package]
+name = "ai-dev-platform-mvp"
+version = "2.3.1"
+description = "ACE - AI Collaboration Engine"
+authors = ["You"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-ico", "devtools"] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+reqwest = { version = "0.11", features = ["json", "stream"] }
+futures-util = "0.3"
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1.6", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+which = "6"
+dirs = "5"
+directories = "6"
+regex = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+lru = "0.12"
+bincode = "1"
+aes-gcm = "0.10"
+pbkdf2 = "0.12"
+hmac = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
+rand = "0.8"
+sysinfo = "0.29"
+portable-pty = "0.8"
+lazy_static = "1.4"
+victauri-plugin = "0.8.8"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[dev-dependencies]
+victauri-test = "0.8.8"
