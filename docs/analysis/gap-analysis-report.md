@@ -1,5 +1,8 @@
 # ACE 功能差距分析报告（需求 ↔ 代码 ↔ 测试 三方交叉）
 
+> ⚠️ **历史快照文档（2026-09-21）**：本文的差距结论多数已在后续版本修复。
+> 当前实现状态与已知缺口一律以 [`docs/STATUS.md`](../STATUS.md) 为准。
+
 > 分析日期：2026-09-21
 > 需求基线：`FEATURES.md` v2.0（75 项功能 / F001–F075）
 > 核对范围：`src/`（18 页面 / 12 组件 / 6 Store / `lib/tauri.ts`）、`src-tauri/`（77 条 IPC 命令 / 11 Service / 18 表）、`tests/` 与 `src-tauri/tests/`、`docs/testing/*`
