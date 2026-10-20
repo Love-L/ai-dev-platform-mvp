@@ -226,12 +226,15 @@ pub fn insert_requirement_history(
     Ok(())
 }
 
+/// 需求历史行：`(action, old_value, new_value, created_at, id)`
+pub type RequirementHistoryRow = (String, String, Option<String>, Option<String>, String);
+
 /// 查询指定需求的历史记录（按时间倒序）
 pub fn list_requirement_history(
     conn: &Connection,
     requirement_id: &str,
     limit: i64,
-) -> Result<Vec<(String, String, Option<String>, Option<String>, String)>> {
+) -> Result<Vec<RequirementHistoryRow>> {
     let mut stmt = conn.prepare(
         "SELECT action, old_value, new_value, created_at, id
          FROM requirement_history

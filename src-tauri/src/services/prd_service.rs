@@ -54,6 +54,7 @@ fn truncate_chars(s: &str, max_bytes: usize) -> String {
 /// 设置 `project_context_paths` 为分号/逗号分隔的本地路径：
 /// - 文件：直接读取（.md/.txt/.rst/.json）
 /// - 目录：收集其中同扩展名文件（最多 [`CONTEXT_MAX_FILES`] 个）
+///
 /// 单文件与总量分别限幅，防止撑爆 prompt。
 pub async fn collect_project_context(db: &Arc<Mutex<Database>>) -> Option<String> {
     let paths_raw = {
@@ -397,7 +398,7 @@ impl<'a> PrdService<'a> {
         let ctx = self.resolve_context(requirement_id, skill_id).await?;
         let template = ctx.skill.as_ref().map(|s| s.template.clone());
         let description =
-            compose_description(&self.db, ctx.requirement.description.as_deref(), extra_content)
+            compose_description(self.db, ctx.requirement.description.as_deref(), extra_content)
                 .await;
 
         // 双通道分派：agent（本机 Claude CLI）优先判断，api 为默认
@@ -477,7 +478,7 @@ impl<'a> PrdService<'a> {
         let ctx = self.resolve_context(requirement_id, skill_id).await?;
         let template = ctx.skill.as_ref().map(|s| s.template.clone());
         let description =
-            compose_description(&self.db, ctx.requirement.description.as_deref(), extra_content)
+            compose_description(self.db, ctx.requirement.description.as_deref(), extra_content)
                 .await;
 
         // agent 通道：CLI 文本输出无流式能力，一次性生成后整体推送一次

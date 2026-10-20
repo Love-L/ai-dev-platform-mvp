@@ -199,11 +199,10 @@ pub fn structure_score(
     };
     // 时效维度只评估"可达的引用"（死链已在可达维度扣分，避免双扣）
     let alive_refs = refs.len() - dead;
-    let fresh_score = if alive_refs == 0 {
-        MAX_REF_FRESHNESS
-    } else {
-        ((alive_refs - stale) * MAX_REF_FRESHNESS as usize / alive_refs) as i32
-    };
+    let fresh_score = ((alive_refs - stale) * MAX_REF_FRESHNESS as usize)
+        .checked_div(alive_refs)
+        .map(|v| v as i32)
+        .unwrap_or(MAX_REF_FRESHNESS);
     if dead > 0 {
         suggestions.push(RawSuggestion {
             rule_type: "dead_ref".into(),
@@ -626,10 +625,7 @@ impl<'a> SkillEvolutionService<'a> {
         let total = structure_score + effect_score.unwrap_or(0);
 
         // 4) 棘轮判定（先取旧分再插入新分）
-        let decline = match &prev_score {
-            Some(prev) if total < prev.total_score => true,
-            _ => false,
-        };
+        let decline = matches!(&prev_score, Some(prev) if total < prev.total_score);
 
         let db = self.db.lock().await;
         let score = db
@@ -911,7 +907,7 @@ mod tests {
         let tpl = "# x\n## Prompt模板\n做点什么\n";
         let (_, missing) = parse_skill_template_text(tpl);
         assert_eq!(missing.len(), 3);
-        assert!(missing.contains(&"prompt_template".to_string()) == false);
+        assert!(!missing.contains(&"prompt_template".to_string()));
     }
 
     #[test]

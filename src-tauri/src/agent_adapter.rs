@@ -197,7 +197,7 @@ impl AgentAdapter for ClaudeAdapter {
         Some(OneShotInvocation::with_stdin_prompt(
             agent_path,
             args,
-            work_dir.as_deref(),
+            work_dir,
             prompt,
         ))
     }
@@ -352,7 +352,7 @@ impl AgentAdapter for GeminiLikeAdapter {
         Some(OneShotInvocation::with_arg_prompt(
             agent_path,
             Self::oneshot_args(prompt, model),
-            work_dir.as_deref(),
+            work_dir,
         ))
     }
 }
@@ -396,7 +396,7 @@ impl AgentAdapter for ZCodeAdapter {
         Some(OneShotInvocation::with_arg_prompt(
             agent_path,
             args,
-            work_dir.as_deref(),
+            work_dir,
         ))
     }
 }
@@ -435,7 +435,7 @@ impl AgentAdapter for CodexAdapter {
         Some(OneShotInvocation::with_arg_prompt(
             agent_path,
             vec!["exec".to_string(), prompt.to_string()],
-            work_dir.as_deref(),
+            work_dir,
         ))
     }
 }
@@ -474,7 +474,7 @@ impl AgentAdapter for OpenCodeAdapter {
         Some(OneShotInvocation::with_arg_prompt(
             agent_path,
             vec!["run".to_string(), prompt.to_string()],
-            work_dir.as_deref(),
+            work_dir,
         ))
     }
 }
@@ -517,7 +517,7 @@ impl AgentAdapter for AiderAdapter {
                 prompt.to_string(),
                 "--yes".to_string(),
             ],
-            work_dir.as_deref(),
+            work_dir,
         ))
     }
 }
@@ -814,9 +814,7 @@ pub async fn execute_oneshot(inv: OneShotInvocation) -> Result<String, String> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let tail: String = stderr
-            .lines()
-            .filter(|l| !l.trim().is_empty())
-            .last()
+            .lines().rfind(|l| !l.trim().is_empty())
             .unwrap_or("未知错误")
             .chars()
             .take(300)
