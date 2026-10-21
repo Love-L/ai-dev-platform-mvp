@@ -9,16 +9,22 @@ import {
   CheckCircle,
   AlertCircle,
   ArrowRight,
+  Bot,
+  Coins,
   Plus,
   MessageSquare,
   GitBranch,
   FolderOpen,
   Rocket,
   Activity,
+  Timer,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
-import { useRequirementsStore, useTasksStore } from "../stores";
-import { listProjects } from "../lib/tauri";
-import type { Project } from "../lib/types";
+import { useRequirementsStore, useTasksStore, useSessionsStore } from "../stores";
+import { discoverAgents, getStatistics, getTokenBudget, listGitCommits, listProjects } from "../lib/tauri";
+import type { GitCommitRecord } from "../lib/tauri";
+import type { Agent, Project, StatisticsData, TokenBudget } from "../lib/types";
 import { PriorityBadge, StatusBadge } from "../components/Badges";
 import AnimatedNumber from "../components/AnimatedNumber";
 
@@ -45,6 +51,24 @@ const REQ_STATUS_META: { key: string; label: string; color: string }[] = [
   { key: "reviewing", label: "评审中", color: "#f59e0b" },
   { key: "approved", label: "已批准", color: "#10b981" },
 ];
+
+/** 会话运行时长（started_at → now） */
+function formatElapsed(startedAt: string): string {
+  const ms = Date.now() - new Date(startedAt).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return "-";
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return "<1 分钟";
+  if (mins < 60) return `${mins} 分钟`;
+  return `${Math.floor(mins / 60)} 小时 ${mins % 60} 分`;
+}
+
+/** Token 紧凑格式 */
+function compactTokens(n?: number): string {
+  if (!n) return "0";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
 
 interface BentoCardProps {
   children: ReactNode;
@@ -123,16 +147,48 @@ export default function Workspace() {
   const navigate = useNavigate();
   const { requirements, fetchRequirements } = useRequirementsStore();
   const { tasks, fetchTasks } = useTasksStore();
+  const { sessions, fetchSessions, ensureStatusSubscription } = useSessionsStore();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [statistics, setStatistics] = useState<StatisticsData | null>(null);
+  const [budget, setBudget] = useState<TokenBudget | null>(null);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [commits, setCommits] = useState<GitCommitRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
+    // 会话状态变化自动刷新工作台态势（spawn/退出/终止均触发）
+    let release: (() => void) | undefined;
+    let disposed = false;
+    ensureStatusSubscription().then((fn) => {
+      if (disposed) fn();
+      else release = fn;
+    });
+    return () => {
+      disposed = true;
+      release?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadData() {
     try {
-      await Promise.all([fetchRequirements(), fetchTasks(), listProjects().then(setProjects)]);
+      await Promise.all([
+        fetchRequirements(),
+        fetchTasks(),
+        fetchSessions(),
+        listProjects().then(setProjects),
+        getStatistics().then(setStatistics),
+        getTokenBudget()
+          .then(setBudget)
+          .catch(() => null),
+        discoverAgents()
+          .then(setAgents)
+          .catch(() => null),
+        listGitCommits(undefined, undefined, 4)
+          .then(setCommits)
+          .catch(() => null),
+      ]);
     } catch (error) {
       console.error("加载工作台数据失败:", error);
     } finally {
@@ -154,6 +210,15 @@ export default function Workspace() {
 
   const completionRate = stats.totalTasks > 0 ? stats.completedTasks / stats.totalTasks : 0;
   const completionPct = Math.round(completionRate * 100);
+
+  /** 运行中的会话（session:status 事件驱动，自动刷新） */
+  const runningSessions = sessions.filter((s) => s.status === "running");
+
+  /** 近 7 天 Token 趋势（后端补零正序）与本月预算 */
+  const trend = statistics?.tokens.by_day ?? [];
+  const trendMax = Math.max(1, ...trend.map((d) => d.tokens));
+  const budgetRatio = budget && budget.monthly_limit > 0 ? budget.current_usage / budget.monthly_limit : null;
+  const budgetWarned = budgetRatio !== null && budgetRatio >= (budget?.alert_threshold ?? 0.8);
 
   const blockedList = tasks.filter((t) => t.status === "blocked").slice(0, 3);
 
@@ -258,6 +323,98 @@ export default function Workspace() {
             </button>
           ))}
         </div>
+      </motion.div>
+
+      {/* 运行中的会话（实时态势，session:status 驱动自动刷新） */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.26, delay: 0.04, ease: "easeOut" }}
+        className="panel"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            <IconChip icon={Zap} gradient={GRADIENT.green} />
+            <h2 className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>
+              运行中的会话
+            </h2>
+            {runningSessions.length > 0 && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                style={{ background: "var(--color-success-light)", color: "var(--color-success)" }}
+              >
+                {runningSessions.length} 个 Agent 在工作
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => navigate("/sessions")}
+            className="text-xs flex items-center gap-1"
+            style={{ color: "var(--color-primary)" }}
+          >
+            全部会话 <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        {runningSessions.length === 0 ? (
+          <div className="flex items-center justify-between py-3">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2 h-2 rounded-full" style={{ background: "var(--color-border)" }} aria-hidden />
+              <div>
+                <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
+                  暂无运行中的会话
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+                  启动 Agent 后，执行状态会实时显示在这里
+                </p>
+              </div>
+            </div>
+            <button onClick={() => navigate("/agents")} className="btn-secondary text-xs">
+              去启动 Agent
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            {runningSessions.slice(0, 4).map((s) => (
+              <button
+                key={s.id}
+                onClick={() => navigate(`/sessions/${s.id}`)}
+                className="text-left rounded-xl px-3.5 py-3"
+                style={{
+                  background: "var(--color-primary-subtle)",
+                  border: "1px solid var(--color-primary)",
+                  transition: "transform 0.15s ease",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = "")}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-2 h-2 rounded-full animate-pulse shrink-0"
+                    style={{ background: "var(--color-success)" }}
+                    aria-hidden
+                  />
+                  <p className="text-sm font-medium truncate" style={{ color: "var(--color-text)" }}>
+                    {s.title || `会话 ${s.id.slice(0, 8)}`}
+                  </p>
+                </div>
+                <div
+                  className="flex items-center gap-3 mt-2 text-[11px]"
+                  style={{ color: "var(--color-text-tertiary)" }}
+                >
+                  <span className="flex items-center gap-1 truncate">
+                    <Bot className="w-3 h-3 shrink-0" />
+                    {s.agent_name || "Agent"}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Timer className="w-3 h-3" />
+                    {s.started_at ? formatElapsed(s.started_at) : "-"}
+                  </span>
+                  <span className="ml-auto shrink-0">{compactTokens(s.total_tokens)} tok</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </motion.div>
 
       {/* Bento 网格 */}
@@ -460,6 +617,91 @@ export default function Workspace() {
           )}
         </BentoCard>
 
+        {/* T：Token 消耗与预算（含 7 天趋势） */}
+        <BentoCard delay={0.2} onClick={() => navigate("/cost")} title="查看成本明细">
+          <CardHead icon={Coins} gradient={GRADIENT.amber} title="Token 与预算" />
+          <div className="space-y-2.5">
+            <div>
+              <p className="text-xl font-bold" style={{ color: "var(--color-text)" }}>
+                {compactTokens(statistics?.tokens.total)}{" "}
+                <span className="text-[11px] font-normal" style={{ color: "var(--color-text-tertiary)" }}>
+                  累计 tokens
+                </span>
+              </p>
+              <p className="text-[11px] mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+                累计费用 ${(statistics?.tokens.cost || 0).toFixed(4)}
+              </p>
+            </div>
+
+            {/* 本月预算进度 */}
+            {budgetRatio !== null ? (
+              <div>
+                <div className="flex items-center justify-between text-[11px] mb-1">
+                  <span style={{ color: "var(--color-text-secondary)" }}>本月预算</span>
+                  <span style={{ color: budgetWarned ? "var(--color-danger)" : "var(--color-text-secondary)" }}>
+                    {compactTokens(budget?.current_usage)} / {compactTokens(budget?.monthly_limit)}
+                    {budgetWarned ? " · 接近上限" : ""}
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--color-bg-subtle)" }}>
+                  <div
+                    style={{
+                      width: `${Math.min(100, budgetRatio * 100)}%`,
+                      height: "100%",
+                      borderRadius: "9999px",
+                      background: budgetWarned ? "var(--color-danger)" : "linear-gradient(90deg, #f59e0b, #f97316)",
+                      transition: "width 0.6s ease",
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px]" style={{ color: "var(--color-text-tertiary)" }}>
+                未设置预算 · 在设置中开启月度额度
+              </p>
+            )}
+
+            {/* 近 7 天迷你趋势 */}
+            <div>
+              <p
+                className="text-[11px] mb-1.5 flex items-center gap-1"
+                style={{ color: "var(--color-text-secondary)" }}
+              >
+                <TrendingUp className="w-3 h-3" /> 近 7 天用量
+              </p>
+              {trend.length === 0 || trend.every((d) => d.tokens === 0) ? (
+                <p className="text-[11px] py-2" style={{ color: "var(--color-text-tertiary)" }}>
+                  近 7 天暂无用量
+                </p>
+              ) : (
+                <div className="flex items-end gap-1 h-10">
+                  {trend.map((d, i) => {
+                    const isToday = i === trend.length - 1;
+                    const h = Math.max(6, Math.round((d.tokens / trendMax) * 100));
+                    return (
+                      <div
+                        key={d.date}
+                        title={`${d.date}: ${d.tokens.toLocaleString()} tokens · $${d.cost.toFixed(4)}`}
+                        className="flex-1 rounded-t"
+                        style={{
+                          height: `${h}%`,
+                          background: isToday ? "var(--color-primary)" : "var(--color-primary-subtle)",
+                          border: isToday ? "none" : "1px solid var(--color-border-subtle)",
+                          borderBottom: "none",
+                          transition: "height 0.5s ease",
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="mt-auto pt-3 text-[11px]" style={{ color: "var(--color-text-tertiary)" }}>
+            今日 {compactTokens(trend[trend.length - 1]?.tokens)} tokens
+          </div>
+        </BentoCard>
+
         {/* E：项目 */}
         <BentoCard delay={0.2} onClick={() => navigate("/projects")} title="查看全部项目">
           <CardHead
@@ -469,7 +711,7 @@ export default function Workspace() {
             extra={<ArrowRight className="w-3.5 h-3.5" style={{ color: "var(--color-text-tertiary)" }} />}
           />
           {projects.length === 0 ? (
-            <div className="py-6 text-center text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+            <div className="py-4 text-center text-xs" style={{ color: "var(--color-text-tertiary)" }}>
               暂无项目
             </div>
           ) : (
@@ -505,6 +747,91 @@ export default function Workspace() {
           )}
         </BentoCard>
 
+        {/* G：Agent 状态 */}
+        <BentoCard delay={0.24} onClick={() => navigate("/agents")} title="管理 Agent">
+          <CardHead icon={Bot} gradient={GRADIENT.primary} title="Agent 状态" />
+          {agents.length === 0 ? (
+            <div className="py-4 text-center">
+              <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+                未检测到 Agent
+              </p>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/agents");
+                }}
+                className="btn-secondary text-xs mt-2"
+              >
+                去配置
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {agents.slice(0, 4).map((agent) => (
+                <div
+                  key={agent.id}
+                  className="flex items-center justify-between px-2 py-1.5 rounded-lg"
+                  style={{ background: "var(--color-bg-subtle)" }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium truncate" style={{ color: "var(--color-text)" }}>
+                      {agent.display_name}
+                    </p>
+                    <p className="text-[10px] truncate" style={{ color: "var(--color-text-tertiary)" }}>
+                      {agent.version || "版本未知"}
+                    </p>
+                  </div>
+                  <StatusBadge status={agent.status} />
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-auto pt-2 text-[11px]" style={{ color: "var(--color-text-tertiary)" }}>
+            共 {agents.length} 个 Agent
+          </div>
+        </BentoCard>
+
+        {/* H：最近提交 */}
+        <BentoCard delay={0.28} onClick={() => navigate("/commits")} title="查看提交记录">
+          <CardHead icon={GitBranch} gradient={GRADIENT.violet} title="最近提交" />
+          {commits.length === 0 ? (
+            <div className="py-4 text-center">
+              <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+                暂无提交记录
+              </p>
+              <p className="text-[11px] mt-1" style={{ color: "var(--color-text-tertiary)" }}>
+                Agent 完成任务提交代码后将显示在这里
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {commits.slice(0, 4).map((c) => (
+                <div
+                  key={c.short_hash}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
+                  style={{ background: "var(--color-bg-subtle)" }}
+                >
+                  <span
+                    className="font-mono text-[10px] px-1 py-0.5 rounded shrink-0"
+                    style={{ background: "var(--color-primary-subtle)", color: "var(--color-primary)" }}
+                  >
+                    {c.short_hash}
+                  </span>
+                  <p className="text-xs truncate flex-1" style={{ color: "var(--color-text)" }}>
+                    {c.message || "(无提交信息)"}
+                  </p>
+                  <span className="text-[10px] shrink-0" style={{ color: "var(--color-text-tertiary)" }}>
+                    {c.files_changed} 文件
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-auto pt-2 text-[11px] truncate" style={{ color: "var(--color-text-tertiary)" }}>
+            {commits[0]?.branch_name ? `分支 ${commits[0].branch_name}` : ""}
+          </div>
+        </BentoCard>
+
         {/* F：最近动态（时间线，整行） */}
         <BentoCard className="md:col-span-3" delay={0.24}>
           <CardHead
@@ -525,7 +852,7 @@ export default function Workspace() {
             }
           />
           {recentActivity.length === 0 ? (
-            <div className="py-8 text-center text-sm" style={{ color: "var(--color-text-tertiary)" }}>
+            <div className="py-5 text-center text-sm" style={{ color: "var(--color-text-tertiary)" }}>
               暂无活动记录，从「新建需求」开始吧
             </div>
           ) : (

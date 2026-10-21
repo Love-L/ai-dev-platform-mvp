@@ -258,6 +258,35 @@ pub fn get_token_usage_trend(conn: &Connection, days: i32) -> Result<Vec<DailyUs
     rows.collect()
 }
 
+/// 近 `days` 天每日 Token 用量聚合（工作台 7 天趋势图用）。
+///
+/// 缺数据的日期由调用侧补零；口径与 `get_token_usage_by_model` 一致（input+output）。
+pub fn get_token_usage_by_day(conn: &Connection, days: i64) -> Result<Vec<DailyUsage>> {
+    // SQLite date() 解析 ISO-8601 文本前缀；-N 天偏移包含今天（共 N+1 天）
+    let offset = format!("-{} days", days.saturating_sub(1).max(0));
+    let mut stmt = conn.prepare(
+        "SELECT date(recorded_at) AS day,
+                COALESCE(SUM(input_tokens + output_tokens), 0),
+                COALESCE(SUM(total_cost), 0)
+         FROM token_usage
+         WHERE recorded_at >= date('now', ?1)
+         GROUP BY day
+         ORDER BY day ASC",
+    )?;
+
+    let rows = stmt.query_map(params![offset], |row| {
+        Ok(DailyUsage {
+            date: row.get(0)?,
+            total_tokens: row.get(1)?,
+            total_cost: row.get(2)?,
+            input_tokens: 0,
+            output_tokens: 0,
+        })
+    })?;
+
+    rows.collect()
+}
+
 pub fn get_token_usage_by_model(conn: &Connection) -> Result<Vec<ModelUsage>> {
     let mut stmt = conn.prepare(
         "SELECT COALESCE(model, 'unknown'),

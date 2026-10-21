@@ -1,11 +1,12 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   LayoutDashboard,
   FileText,
   Columns,
   Bot,
+  PanelLeftClose,
   Settings,
   Coins,
   BarChart3,
@@ -19,7 +20,18 @@ import {
 } from "lucide-react";
 import { useThemeStore } from "../stores/themeStore";
 import { getMonitorData } from "../lib/tauri";
-import { useI18n, LOCALES } from "../lib/i18n";
+import { useI18n } from "../lib/i18n";
+
+/** 侧边栏折叠状态持久化 key */
+const SIDEBAR_COLLAPSED_KEY = "ace.sidebar.collapsed";
+
+function loadCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 interface MonitorData {
   cpu_usage: number;
@@ -60,8 +72,21 @@ const navSections = [
 
 export default function Layout() {
   const { theme: _theme } = useThemeStore();
-  const { locale, setLocale, t } = useI18n();
+  const { t } = useI18n();
   const [monitorData, setMonitorData] = useState<MonitorData | null>(null);
+  const [collapsed, setCollapsed] = useState<boolean>(loadCollapsed);
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
+      } catch {
+        // 忽略持久化失败
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const fetchMonitorData = async () => {
@@ -83,53 +108,91 @@ export default function Layout() {
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       {/* 侧边栏 */}
       <aside
-        className="w-[220px] flex flex-col flex-shrink-0 border-r"
+        className={`flex flex-col flex-shrink-0 border-r overflow-hidden ${collapsed ? "w-[64px]" : "w-[220px]"}`}
         style={{
           background: "var(--color-surface)",
           borderColor: "var(--color-border)",
+          transition: "width 200ms ease",
         }}
       >
-        {/* Logo区域 */}
+        {/* Logo区域：展开态右侧为收起按钮；折叠态点击图标展开 */}
         <div
-          className="h-14 flex items-center gap-2.5 px-4 border-b"
-          style={{ borderColor: "var(--color-border-subtle)" }}
+          className="h-14 flex items-center gap-2.5 border-b flex-shrink-0"
+          style={{
+            borderColor: "var(--color-border-subtle)",
+            padding: collapsed ? "0 16px" : "0 16px",
+          }}
         >
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "var(--color-primary)" }}
+          <button
+            onClick={toggleCollapsed}
+            className="flex items-center gap-2.5 min-w-0 flex-1 h-full"
+            title={collapsed ? "展开菜单" : "点击图标可收起"}
+            aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
           >
-            <Bot className="w-4 h-4 text-white" strokeWidth={2} />
-          </div>
-          <div>
-            <h1 className="text-[13px] font-semibold leading-tight" style={{ color: "var(--color-text)" }}>
-              ACE
-            </h1>
-            <p className="text-[10px] leading-tight" style={{ color: "var(--color-text-tertiary)" }}>
-              v2.3.1
-            </p>
-          </div>
+            <span
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: "var(--color-primary)" }}
+            >
+              <Bot className="w-4 h-4 text-white" strokeWidth={2} />
+            </span>
+            {!collapsed && (
+              <span className="text-left min-w-0">
+                <h1 className="text-[13px] font-semibold leading-tight" style={{ color: "var(--color-text)" }}>
+                  ACE
+                </h1>
+                <p className="text-[10px] leading-tight" style={{ color: "var(--color-text-tertiary)" }}>
+                  v2.3.1
+                </p>
+              </span>
+            )}
+          </button>
+          {!collapsed && (
+            <button
+              onClick={toggleCollapsed}
+              className="p-1.5 rounded-lg flex-shrink-0"
+              title="收起菜单"
+              aria-label="收起侧边栏"
+              style={{ color: "var(--color-text-tertiary)" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--color-bg-subtle)";
+                e.currentTarget.style.color = "var(--color-text)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "";
+                e.currentTarget.style.color = "";
+              }}
+            >
+              <PanelLeftClose className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* 导航菜单 */}
         <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-5">
           {navSections.map((section) => (
             <div key={section.label}>
-              <p
-                className="px-2.5 mb-1 text-[10px] font-semibold uppercase tracking-wider"
-                style={{ color: "var(--color-text-tertiary)" }}
-              >
-                {t(section.labelKey, section.label)}
-              </p>
+              {!collapsed && (
+                <p
+                  className="px-2.5 mb-1 text-[10px] font-semibold uppercase tracking-wider"
+                  style={{ color: "var(--color-text-tertiary)" }}
+                >
+                  {t(section.labelKey, section.label)}
+                </p>
+              )}
+              {collapsed && (
+                <div className="mx-2 mb-2 border-t" style={{ borderColor: "var(--color-border-subtle)" }} />
+              )}
               <div className="space-y-0.5">
                 {section.items.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
                     end={item.to === "/"}
+                    title={collapsed ? t(item.labelKey, item.label) : undefined}
                     className={({ isActive }) =>
-                      `group flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[13px] font-medium transition-all duration-150 ${
-                        isActive ? "text-blue-600" : ""
-                      }`
+                      `group flex items-center rounded-lg text-[13px] font-medium transition-all duration-150 ${
+                        collapsed ? "justify-center px-0 py-2" : "gap-2.5 px-2.5 py-[7px]"
+                      } ${isActive ? "text-blue-600" : ""}`
                     }
                     style={({ isActive }) => ({
                       background: isActive ? "var(--color-primary-subtle)" : "transparent",
@@ -145,7 +208,7 @@ export default function Layout() {
                           }}
                           strokeWidth={1.75}
                         />
-                        <span>{t(item.labelKey, item.label)}</span>
+                        {!collapsed && <span>{t(item.labelKey, item.label)}</span>}
                       </>
                     )}
                   </NavLink>
@@ -155,12 +218,15 @@ export default function Layout() {
           ))}
         </nav>
 
-        {/* 底部设置入口 */}
-        <div className="p-2.5 border-t" style={{ borderColor: "var(--color-border-subtle)" }}>
+        {/* 底部设置入口（语言切换已移入设置页） */}
+        <div className="p-2.5 border-t flex-shrink-0" style={{ borderColor: "var(--color-border-subtle)" }}>
           <NavLink
             to="/settings"
+            title={collapsed ? t("nav.settings", "设置") : undefined}
             className={() =>
-              `group flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[13px] font-medium transition-all duration-150`
+              `group flex items-center rounded-lg text-[13px] font-medium transition-all duration-150 ${
+                collapsed ? "justify-center px-0 py-2" : "gap-2.5 px-2.5 py-[7px]"
+              }`
             }
             style={({ isActive }) => ({
               background: isActive ? "var(--color-bg-subtle)" : "transparent",
@@ -168,28 +234,8 @@ export default function Layout() {
             })}
           >
             <Settings className="w-4 h-4" style={{ color: "var(--color-text-tertiary)" }} strokeWidth={1.75} />
-            <span>{t("nav.settings", "设置")}</span>
+            {!collapsed && <span>{t("nav.settings", "设置")}</span>}
           </NavLink>
-          {/* 语言切换 */}
-          <div
-            className="flex items-center gap-1 px-2.5 pt-2 mt-1 border-t"
-            style={{ borderColor: "var(--color-border-subtle)" }}
-          >
-            {LOCALES.map((l) => (
-              <button
-                key={l.value}
-                onClick={() => setLocale(l.value)}
-                className="px-2 py-[3px] text-[11px] font-medium rounded-md transition-colors"
-                style={{
-                  background: locale === l.value ? "var(--color-primary-subtle)" : "transparent",
-                  color: locale === l.value ? "var(--color-primary)" : "var(--color-text-tertiary)",
-                }}
-                title={l.value === "zh-CN" ? "切换为中文" : "Switch to English"}
-              >
-                {l.label}
-              </button>
-            ))}
-          </div>
         </div>
       </aside>
 

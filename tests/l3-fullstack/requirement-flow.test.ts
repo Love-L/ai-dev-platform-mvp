@@ -33,12 +33,17 @@ describe("L3 Full-stack: 需求管理全链路", () => {
     };
     mockInvoke.mockResolvedValue(mockResult);
 
-    const result = await createRequirement("测试需求", "需求描述", "P1");
+    const result = await createRequirement({
+      title: "测试需求",
+      description: "需求描述",
+      priority: "P1",
+    });
 
     expect(mockInvoke).toHaveBeenCalledWith("create_requirement", {
       title: "测试需求",
       description: "需求描述",
       priority: "P1",
+      projectId: undefined,
       module: undefined,
       source: undefined,
       sourceDetail: undefined,
@@ -69,7 +74,13 @@ describe("L3 Full-stack: 需求管理全链路", () => {
 
     const result = await listRequirements();
 
-    expect(mockInvoke).toHaveBeenCalledWith("list_requirements", { status: undefined });
+    // P0-① 修复后 wrapper 携带分页参数并循环拉尽（items<pageSize 即停止）
+    expect(mockInvoke).toHaveBeenCalledWith("list_requirements", {
+      page: 1,
+      pageSize: 200,
+      status: undefined,
+      projectId: undefined,
+    });
     expect(result).toHaveLength(2);
     expect(result[0].id).toBe("req-001");
   });

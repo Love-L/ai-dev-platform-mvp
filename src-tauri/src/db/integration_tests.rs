@@ -127,6 +127,7 @@ fn create_task_persists_description() {
             "development",
             "P1",
             Some("【来源需求】描述代入需求\n需求正文与 PRD 内容"),
+            None,
         )
         .unwrap();
 
@@ -136,11 +137,21 @@ fn create_task_persists_description() {
         Some("【来源需求】描述代入需求\n需求正文与 PRD 内容")
     );
     assert_eq!(loaded.requirement_id.as_deref(), Some(req_id.as_str()));
+    // P0-T1：经需求创建的任务自动归属项目
+    let req_project = t
+        .db
+        .get_requirement(&req_id)
+        .unwrap()
+        .expect("需求应存在")
+        .project_id;
+    if !req_project.is_empty() {
+        assert_eq!(loaded.project_id.as_deref(), Some(req_project.as_str()));
+    }
 
     // 手动创建：description 可为空
     let plain = t
         .db
-        .create_task("无描述任务", None, "testing", "P2", None)
+        .create_task("无描述任务", None, "testing", "P2", None, None)
         .unwrap();
     let plain_loaded = t.db.get_task(&plain.id).unwrap().expect("任务应存在");
     assert!(plain_loaded.description.is_none());
@@ -152,7 +163,7 @@ fn create_task_persists_description() {
 fn export_snapshot_contains_real_data() {
     let t = TempDb::new("export");
     let req_id = seed_requirement(&t.db, "导出用例");
-    t.db.create_task("导出用任务", Some(&req_id), "development", "P1", None)
+    t.db.create_task("导出用任务", Some(&req_id), "development", "P1", None, None)
         .unwrap();
 
     let snapshot = t.db.export_snapshot().unwrap();
@@ -175,7 +186,7 @@ fn import_snapshot_restores_data_into_fresh_database() {
     let src = TempDb::new("import-src");
     let req_id = seed_requirement(&src.db, "待迁移需求");
     src.db
-        .create_task("待迁移任务", Some(&req_id), "testing", "P2", None)
+        .create_task("待迁移任务", Some(&req_id), "testing", "P2", None, None)
         .unwrap();
     src.db
         .insert_requirement_history(&req_id, "create", None, Some("待迁移需求"))
@@ -277,7 +288,7 @@ fn finish_agent_session_writes_status_duration_and_exit_code() {
     t.db.finish_agent_session(&session.id, "completed", Some(0))
         .unwrap();
 
-    let sessions = t.db.get_agent_sessions(None).unwrap();
+    let sessions = t.db.get_agent_sessions(None, true).unwrap();
     let s = sessions.iter().find(|s| s.id == session.id).unwrap();
     assert_eq!(s.status, "completed");
     assert_eq!(s.exit_code, Some(0));
@@ -298,7 +309,7 @@ fn finish_agent_session_does_not_override_terminal_state() {
     t.db.finish_agent_session(&session.id, "failed", Some(-1))
         .unwrap();
 
-    let sessions = t.db.get_agent_sessions(None).unwrap();
+    let sessions = t.db.get_agent_sessions(None, true).unwrap();
     let s = sessions.iter().find(|s| s.id == session.id).unwrap();
     assert_eq!(s.status, "completed", "终态不应被后续回写覆盖");
     assert_eq!(s.exit_code, Some(0));
@@ -318,7 +329,7 @@ fn reconcile_marks_stale_running_sessions_as_failed() {
     let affected = t.db.reconcile_running_sessions().unwrap();
     assert_eq!(affected, 2, "应只修正残留的 running 会话");
 
-    let sessions = t.db.get_agent_sessions(None).unwrap();
+    let sessions = t.db.get_agent_sessions(None, true).unwrap();
     for id in [&running_a.id, &running_b.id] {
         let s = sessions.iter().find(|s| &s.id == id).unwrap();
         assert_eq!(s.status, "failed");
@@ -342,7 +353,7 @@ fn git_commit_is_persisted_and_queryable_by_task() {
     let req_id = seed_requirement(&t.db, "提交用例");
     let task = t
         .db
-        .create_task("提交任务", Some(&req_id), "development", "P1", None)
+        .create_task("提交任务", Some(&req_id), "development", "P1", None, None)
         .unwrap();
 
     t.db
@@ -620,4 +631,56 @@ fn upsert_agent_returns_new_id_for_new_binary_path() {
     // 会话外键同样成立
     let session = t.db.create_agent_session(&id, None).expect("创建会话失败");
     assert_eq!(session.agent_id, id);
+}
+
+
+/// 会话管理：重命名 / 归档过滤 / 级联删除（P1）
+#[test]
+fn session_rename_archive_and_cascade_delete() {
+    let t = TempDb::new("session-manage");
+    let agent_id = seed_agent(&t.db, "manage");
+    let session = t.db.create_agent_session(&agent_id, None).unwrap();
+
+    // 重命名
+    t.db.rename_session(&session.id, "登录页开发 · 10-21 14:30")
+        .unwrap();
+    let s = t.db.get_agent_session(&session.id).unwrap().unwrap();
+    assert_eq!(s.title.as_deref(), Some("登录页开发 · 10-21 14:30"));
+
+    // 归档后默认列表不可见；include_archived = true 时可见
+    t.db.set_session_archived(&session.id, true).unwrap();
+    assert!(t
+        .db
+        .get_agent_sessions(None, false)
+        .unwrap()
+        .iter()
+        .all(|x| x.id != session.id));
+    assert!(t
+        .db
+        .get_agent_sessions(None, true)
+        .unwrap()
+        .iter()
+        .any(|x| x.id == session.id));
+
+    // 取消归档后重新可见
+    t.db.set_session_archived(&session.id, false).unwrap();
+    assert!(t
+        .db
+        .get_agent_sessions(None, false)
+        .unwrap()
+        .iter()
+        .any(|x| x.id == session.id));
+
+    // 级联删除：会话本体与其消息一并清理
+    t.db.append_session_message(
+        &session.id,
+        &crate::db::session_messages::MessageContext::default(),
+        crate::db::session_messages::BlockSpec::new("user", "text", Some("hi".to_string())),
+    )
+    .unwrap();
+    assert_eq!(t.db.count_session_messages(&session.id).unwrap(), 1);
+
+    t.db.delete_session_cascade(&session.id).unwrap();
+    assert!(t.db.get_agent_session(&session.id).unwrap().is_none());
+    assert_eq!(t.db.count_session_messages(&session.id).unwrap(), 0);
 }

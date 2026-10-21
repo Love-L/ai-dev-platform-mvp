@@ -5,6 +5,7 @@ use super::*;
 // ==================== 任务管理命令 ====================
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_task(
     state: State<'_, AppState>,
     title: String,
@@ -19,6 +20,7 @@ pub async fn create_task(
     tags: Option<String>,
     notes: Option<String>,
     description: Option<String>,
+    project_id: Option<String>,
 ) -> Result<Task, AppError> {
     // 输入验证
     validate_task(&title, &task_type, &priority)?;
@@ -42,6 +44,7 @@ pub async fn create_task(
         tags.as_deref(),
         notes.as_deref(),
         description.as_deref(),
+        project_id.as_deref(),
     ).await.map_err(AppError::legacy)
 }
 
@@ -101,6 +104,7 @@ pub async fn get_task(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn update_task(
     state: State<'_, AppState>,
     id: String,
@@ -112,10 +116,31 @@ pub async fn update_task(
     due_date: Option<String>,
     tags: Option<String>,
     project_id: Option<String>,
+    // P0-T2：创建时可填的扩展字段此前无法回改（死数据），此处补齐
+    estimated_hours: Option<f64>,
+    priority_level: Option<String>,
+    blocked_reason: Option<String>,
+    notes: Option<String>,
 ) -> Result<(), AppError> {
     let db = state.db.lock().await;
     db.update_task(&id, title.as_deref(), description.as_deref(), task_type.as_deref(), priority.as_deref(), assignee.as_deref(), due_date.as_deref(), tags.as_deref(), project_id.as_deref())
-        .map_err(|e| format!("更新任务失败: {}", e)).map_err(AppError::legacy)
+        .map_err(|e| format!("更新任务失败: {}", e)).map_err(AppError::legacy)?;
+    db.update_task_fields(
+        &id,
+        None, // assignee：上一步已处理
+        None, // due_date：同上
+        estimated_hours,
+        None, // actual_hours：由会话回写
+        priority_level.as_deref(),
+        blocked_reason.as_deref(),
+        None, // related_requirement_id
+        None, // related_project_id
+        None, // tags：上一步已处理
+        notes.as_deref(),
+        None, // attachments
+    )
+    .map_err(|e| format!("更新任务扩展字段失败: {}", e))
+    .map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -126,6 +151,18 @@ pub async fn list_tasks_by_project(
     let db = state.db.lock().await;
     db.list_tasks_by_project(&project_id)
         .map_err(|e| format!("获取项目任务列表失败: {}", e)).map_err(AppError::legacy)
+}
+
+// ==================== 任务状态机下发（P1-T5） ====================
+
+/// 下发任务状态机全表 `{status: [next, ...]}`，前端流转/拖拽预检据此渲染。
+#[tauri::command]
+pub fn get_task_transitions() -> serde_json::Value {
+    let map: serde_json::Map<String, serde_json::Value> = crate::validation::task_transitions()
+        .into_iter()
+        .map(|(state, next)| (state.to_string(), serde_json::json!(next)))
+        .collect();
+    serde_json::Value::Object(map)
 }
 
 // ==================== 任务评论命令 ====================

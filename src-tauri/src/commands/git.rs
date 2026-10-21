@@ -16,10 +16,49 @@ pub async fn git_get_status(
 pub async fn git_get_diff(
     work_dir: String,
     file_path: Option<String>,
+    commit_hash: Option<String>,
 ) -> Result<String, AppError> {
     let svc = GitService::new();
-    svc.get_diff(&work_dir, file_path.as_deref())
+    svc.get_diff(&work_dir, file_path.as_deref(), commit_hash.as_deref())
         .map_err(|e| AppError::legacy(e.to_string()))
+}
+
+/// 真实提交计数 `{total, today, week}`（P1-C3：取代前端 100 条窗口估算）
+#[tauri::command]
+pub async fn git_count_commits(
+    work_dir: String,
+) -> Result<serde_json::Value, AppError> {
+    let svc = GitService::new();
+    svc.count_commits(&work_dir).map_err(|e| AppError::legacy(e.to_string()))
+}
+
+/// 列出本地分支（含当前分支）
+#[tauri::command]
+pub async fn git_list_branches(
+    work_dir: String,
+) -> Result<serde_json::Value, AppError> {
+    let svc = GitService::new();
+    svc.list_branches(&work_dir).map_err(|e| AppError::legacy(e.to_string()))
+}
+
+/// 切换分支（分支名白名单校验）
+#[tauri::command]
+pub async fn git_switch_branch(
+    work_dir: String,
+    branch: String,
+) -> Result<serde_json::Value, AppError> {
+    let svc = GitService::new();
+    svc.switch_branch(&work_dir, &branch).map_err(|e| AppError::legacy(e.to_string()))
+}
+
+/// 列出指定提交涉及的文件（name-status）
+#[tauri::command]
+pub async fn git_show_files(
+    work_dir: String,
+    commit_hash: String,
+) -> Result<Vec<serde_json::Value>, AppError> {
+    let svc = GitService::new();
+    svc.show_files(&work_dir, &commit_hash).map_err(|e| AppError::legacy(e.to_string()))
 }
 
 #[tauri::command]
@@ -61,8 +100,19 @@ pub async fn git_create_commit(
             files_changed,
         ) {
             Ok(id) => info!("提交记录已落库: id={}", id),
-            // 落库失败不回滚已完成的提交，仅记录错误
-            Err(e) => error!("提交记录落库失败: {}", e),
+            // 落库失败不回滚已完成的提交；把警告带回前端提示用户
+            Err(e) => {
+                error!("提交记录落库失败: {}", e);
+                let mut obj = result.as_object().cloned().unwrap_or_default();
+                obj.insert(
+                    "db_warning".to_string(),
+                    serde_json::json!(format!(
+                        "Git 提交已完成，但平台追溯记录保存失败（{}），该提交不会出现在任务/会话关联视图中",
+                        e
+                    )),
+                );
+                return Ok(serde_json::Value::Object(obj));
+            }
         }
     }
 

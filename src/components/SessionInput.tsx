@@ -123,10 +123,12 @@ export default function SessionInput({
     if (sending || !running) return;
     if (!text && attachments.length === 0) return;
 
+    // 附件以固定 marker 区块注入：Agent 读取路径行完成识别，
+    // 前端气泡解析该区块渲染缩略图 / 文件 chip（见 MessageBubble）
     let content = text;
     if (attachments.length > 0) {
-      const list = attachments.map((a) => `  - ${a.path}`).join("\n");
-      content = `${text ? text + "\n\n" : ""}📎 附件已保存到本地，请读取并识别以下文件：\n${list}`;
+      const list = attachments.map((a) => `- ${a.path}`).join("\n");
+      content = `${text ? text + "\n\n" : ""}📎 附件（请读取并识别以下文件）：\n${list}`;
     }
     setValue("");
     attachments.forEach((a) => {

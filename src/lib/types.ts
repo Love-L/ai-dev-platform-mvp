@@ -130,6 +130,8 @@ export interface AgentSession {
   output_tokens?: number;
   total_tokens?: number;
   total_cost?: number;
+  /** 归档标记（1 = 已归档，默认列表隐藏） */
+  archived?: number;
   // ==== 模块 16：会话交互与消息 ====
   /** CLI 侧会话 ID（用于 `--resume` 续接） */
   cli_session_id?: string;
@@ -413,7 +415,11 @@ export interface StatisticsData {
     cost: number;
     input: number;
     output: number;
+    /** 近 7 天每日用量（正序，含补零日期） */
+    by_day?: { date: string; tokens: number; cost: number }[];
   };
+  /** 运行中的会话数（工作台态势指示） */
+  sessions?: { running: number };
 }
 
 export interface CacheStats {

@@ -1,6 +1,24 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Loader2, Plus, Trash2, X, Settings, Zap, Plug, FileText, Columns } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Loader2,
+  Plus,
+  Trash2,
+  X,
+  Settings,
+  Zap,
+  Plug,
+  FileText,
+  Columns,
+  Archive,
+  ArchiveRestore,
+  Activity,
+  ListChecks,
+} from "lucide-react";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { showToast } from "../components/Toast";
 import {
   getProject,
   updateProject,
@@ -46,6 +64,10 @@ export default function ProjectDetail() {
   const [description, setDescription] = useState("");
   const [key, setKey] = useState("");
   const [status, setStatus] = useState("active");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [ownerId, setOwnerId] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Skill 配置
   const [projectSkills, setProjectSkills] = useState<ProjectSkill[]>([]);
@@ -78,7 +100,8 @@ export default function ProjectDetail() {
         listProjectSkills(projectId),
         listProjectMcps(projectId),
         listPrdSkills(),
-        listRequirements(),
+        // 后端按 project_id 过滤（不再全量拉取本地过滤）
+        listRequirements(undefined, projectId),
         listTasksByProject(projectId),
         listStageSkillConfigs(projectId),
         getPipelineStages(),
@@ -89,14 +112,16 @@ export default function ProjectDetail() {
         setDescription(proj.description || "");
         setKey(proj.key || "");
         setStatus(proj.status || "active");
+        setStartDate(proj.start_date || "");
+        setEndDate(proj.end_date || "");
+        setOwnerId(proj.owner_id || "");
       }
       setProjectSkills(skills);
       setProjectMcps(mcps);
       setAllSkills(allSk);
       setStageConfigs(stages);
       setPipelineStages(pipelineStagesList);
-      // 过滤属于当前项目的需求
-      setRequirements(reqs.filter((r) => r.project_id === projectId));
+      setRequirements(reqs);
       setTasks(projectTasks);
     } catch (error) {
       console.error("加载项目详情失败:", error);
@@ -109,11 +134,50 @@ export default function ProjectDetail() {
     if (!id) return;
     setSaving(true);
     try {
-      await updateProject(id, { name, description, key, status });
+      await updateProject(id, {
+        name,
+        description,
+        key,
+        status,
+        startDate,
+        endDate,
+        ownerId,
+      });
+      showToast("success", "项目已保存");
     } catch (error) {
       console.error("保存失败:", error);
+      showToast("error", `保存失败: ${error}`);
     } finally {
       setSaving(false);
+    }
+  }
+
+  /** 归档/恢复：数据全保留，仅从默认列表隐藏（删除的逃生口） */
+  async function handleToggleArchive() {
+    if (!id || !project) return;
+    const next = project.status === "archived" ? "active" : "archived";
+    try {
+      await updateProject(id, { status: next });
+      setStatus(next);
+      setProject({ ...project, status: next });
+      showToast("success", next === "archived" ? "项目已归档" : "项目已恢复");
+    } catch (error) {
+      showToast("error", `操作失败: ${error}`);
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!id) return;
+    try {
+      const { deleteProject } = await import("../lib/tauri");
+      await deleteProject(id);
+      showToast("success", "项目已删除");
+      navigate("/projects");
+    } catch (error) {
+      // 后端校验为中文人话（关联数据计数），直接透出
+      showToast("error", `删除失败: ${error}`);
+    } finally {
+      setConfirmDelete(false);
     }
   }
 
@@ -261,51 +325,175 @@ export default function ProjectDetail() {
         </div>
       </div>
 
-      {/* 概览 Tab */}
+      {/* 概览 Tab（P1：统计头 + 基本信息 + 危险区） */}
       {activeTab === "overview" && (
-        <div className="panel max-w-2xl">
-          <h2 className="panel-title mb-4">基本信息</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="label">项目名称</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input" />
-            </div>
-            <div>
-              <label className="label">项目描述</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="input resize-none"
-                rows={3}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-5">
+          {/* 统计头 */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {(() => {
+              const reqDone = requirements.filter((r) => r.status === "completed").length;
+              const taskDone = tasks.filter((t) => t.status === "completed").length;
+              const inProgress = tasks.filter((t) => t.status === "in_progress").length;
+              const stats = [
+                {
+                  label: "需求完成率",
+                  value: requirements.length > 0 ? `${Math.round((reqDone / requirements.length) * 100)}%` : "-",
+                  sub: `${reqDone} / ${requirements.length} 已完成`,
+                  icon: FileText,
+                },
+                {
+                  label: "任务完成率",
+                  value: tasks.length > 0 ? `${Math.round((taskDone / tasks.length) * 100)}%` : "-",
+                  sub: `${taskDone} / ${tasks.length} 已完成`,
+                  icon: ListChecks,
+                },
+                { label: "进行中任务", value: String(inProgress), sub: "正在推进", icon: Activity },
+                {
+                  label: "总任务数",
+                  value: String(tasks.length),
+                  sub: `需求 ${requirements.length} 条`,
+                  icon: Columns,
+                },
+              ];
+              return stats.map((s) => (
+                <div key={s.label} className="card p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+                      {s.label}
+                    </p>
+                    <s.icon className="w-3.5 h-3.5" style={{ color: "var(--color-text-tertiary)" }} />
+                  </div>
+                  <p className="text-xl font-bold mt-1" style={{ color: "var(--color-text)" }}>
+                    {s.value}
+                  </p>
+                  <p className="text-[11px] mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+                    {s.sub}
+                  </p>
+                </div>
+              ));
+            })()}
+          </div>
+
+          <div className="panel max-w-2xl">
+            <h2 className="panel-title mb-4">基本信息</h2>
+            <div className="space-y-4">
               <div>
-                <label className="label">项目标识</label>
-                <input
-                  type="text"
-                  value={key}
-                  onChange={(e) => setKey(e.target.value.toUpperCase())}
-                  className="input"
-                  maxLength={10}
+                <label className="label">项目名称</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input" />
+              </div>
+              <div>
+                <label className="label">项目描述</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="input resize-none"
+                  rows={3}
                 />
               </div>
-              <div>
-                <label className="label">状态</label>
-                <select value={status} onChange={(e) => setStatus(e.target.value)} className="select">
-                  <option value="active">进行中</option>
-                  <option value="paused">已暂停</option>
-                  <option value="archived">已归档</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">项目标识</label>
+                  <input
+                    type="text"
+                    value={key}
+                    onChange={(e) => setKey(e.target.value.toUpperCase())}
+                    className="input"
+                    maxLength={10}
+                  />
+                </div>
+                <div>
+                  <label className="label">状态</label>
+                  <select value={status} onChange={(e) => setStatus(e.target.value)} className="select">
+                    <option value="active">进行中</option>
+                    <option value="paused">已暂停</option>
+                    <option value="archived">已归档</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="label">开始日期</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="label">结束日期</label>
+                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="input" />
+                </div>
+                <div>
+                  <label className="label">负责人</label>
+                  <input
+                    type="text"
+                    value={ownerId}
+                    onChange={(e) => setOwnerId(e.target.value)}
+                    className="input"
+                    placeholder="如：张三"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end pt-2">
+                <button onClick={handleSave} disabled={saving} className="btn-primary">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  保存修改
+                </button>
               </div>
             </div>
-            <div className="flex justify-end pt-2">
-              <button onClick={handleSave} disabled={saving} className="btn-primary">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                保存修改
+          </div>
+
+          {/* 危险区：归档为主逃生口，删除为兜底 */}
+          <div className="panel max-w-2xl" style={{ borderColor: "var(--color-danger-light)" }}>
+            <h2 className="panel-title mb-2">项目操作</h2>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
+                  {status === "archived" ? "恢复项目" : "归档项目"}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+                  归档后从默认列表隐藏，需求/任务/配置全部保留，可随时恢复。
+                </p>
+              </div>
+              <button onClick={handleToggleArchive} className="btn-secondary text-sm shrink-0">
+                {status === "archived" ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                {status === "archived" ? "取消归档" : "归档"}
+              </button>
+            </div>
+            <div
+              className="border-t mt-4 pt-4 flex items-center justify-between gap-4"
+              style={{ borderColor: "var(--color-border-subtle)" }}
+            >
+              <div>
+                <p className="text-sm font-medium" style={{ color: "var(--color-danger)" }}>
+                  删除项目
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+                  永久删除。存在需求/任务/Skill/MCP 配置时不可删除，建议使用归档。
+                </p>
+              </div>
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="btn-secondary text-sm shrink-0"
+                style={{ color: "var(--color-danger)" }}
+              >
+                <Trash2 className="w-4 h-4" />
+                删除
               </button>
             </div>
           </div>
+
+          {confirmDelete && (
+            <ConfirmDialog
+              danger
+              title="删除项目"
+              message={`确定要删除「${project?.name}」吗？\n此操作不可恢复；若项目下还有数据将被拒绝，届时请改用「归档」。`}
+              confirmLabel="删除"
+              onConfirm={handleConfirmDelete}
+              onCancel={() => setConfirmDelete(false)}
+            />
+          )}
         </div>
       )}
 
@@ -596,7 +784,9 @@ export default function ProjectDetail() {
       {activeTab === "pipeline" && (
         <div className="space-y-4">
           <p className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>
-            配置每个环节默认使用的 Skill，新需求将自动应用对应环节的配置
+            配置每个环节默认使用的 Skill。
+            <span style={{ color: "var(--color-primary)" }}>「PRD 生成」环节已生效</span>
+            （生成 PRD 时优先于项目默认 Skill）；其余环节为预留，将随后续流水线能力逐步接入。
           </p>
 
           <div className="card divide-y" style={{ borderColor: "var(--color-border)" }}>

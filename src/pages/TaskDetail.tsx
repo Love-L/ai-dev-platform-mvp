@@ -12,6 +12,8 @@ import {
   Pencil,
   FileText,
   ExternalLink,
+  GitCommit,
+  Bot,
 } from "lucide-react";
 import type { Task, TaskComment, Requirement } from "../lib/types";
 import {
@@ -23,6 +25,10 @@ import {
   updateTask,
   updateTaskStatus,
   getRequirement,
+  getTaskTransitions,
+  listGitCommits,
+  getAgentSessions,
+  type GitCommitRecord,
 } from "../lib/tauri";
 import { TaskTypeBadge, PriorityBadge, StatusBadge } from "../components/Badges";
 import { showToast } from "../components/Toast";
@@ -48,16 +54,19 @@ const REQ_STATUS_LABEL: Record<string, string> = {
   completed: "已完成",
 };
 
-/** 任务状态合法流转（与后端 validation::validate_task_status_transition 一致） */
-const TASK_TRANSITIONS: Record<string, string[]> = {
+/**
+ * 状态机兜底表：仅在后端 `get_task_transitions` 拉取失败（纯浏览器预览等）时使用。
+ * 正常运行以后端下发为唯一真源（与 validation::task_transitions 同源）。
+ */
+const TASK_TRANSITIONS_FALLBACK: Record<string, string[]> = {
   pending: ["in_progress", "blocked"],
   in_progress: ["completed", "blocked", "pending"],
   blocked: ["pending", "in_progress"],
   completed: ["pending"],
 };
 
-function nextTaskStatuses(current: string): string[] {
-  return TASK_TRANSITIONS[current] ?? [];
+function nextTaskStatuses(current: string, table: Record<string, string[]>): string[] {
+  return table[current] ?? [];
 }
 
 export default function TaskDetail() {
@@ -72,13 +81,44 @@ export default function TaskDetail() {
   const [showEdit, setShowEdit] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
   const [sourceReq, setSourceReq] = useState<Requirement | null>(null);
+  // P1-T5：状态机以后端下发为唯一真源
+  const [transitions, setTransitions] = useState<Record<string, string[]>>(TASK_TRANSITIONS_FALLBACK);
+  // P1-T8：追溯视图（本任务的关联提交与会话）
+  const [linkedCommits, setLinkedCommits] = useState<GitCommitRecord[]>([]);
+  const [linkedSessions, setLinkedSessions] = useState<
+    Array<{ id: string; title?: string | null; status: string; started_at?: string | null }>
+  >([]);
 
   useEffect(() => {
     if (id) {
       loadTask(id);
       loadComments(id);
+      loadTrace(id);
     }
   }, [id]);
+
+  // 状态机以后端为唯一真源（拉取失败退回兜底表）
+  useEffect(() => {
+    getTaskTransitions()
+      .then((table) => {
+        if (Object.keys(table).length > 0) setTransitions(table);
+      })
+      .catch(() => {});
+  }, []);
+
+  /** 加载追溯数据：关联提交 + 关联会话 */
+  async function loadTrace(taskId: string) {
+    try {
+      const [commits, sessions] = await Promise.all([
+        listGitCommits(taskId, undefined, 20).catch(() => []),
+        getAgentSessions().catch(() => []),
+      ]);
+      setLinkedCommits(commits);
+      setLinkedSessions(sessions.filter((s) => s.task_id === taskId || s.related_task_id === taskId));
+    } catch {
+      // 追溯数据加载失败不阻断页面
+    }
+  }
 
   // 加载来源需求内容（任务详情展示 + 跳转）
   const requirementId = task?.requirement_id || task?.related_requirement_id;
@@ -136,7 +176,7 @@ export default function TaskDetail() {
     }
   }
 
-  /** 编辑保存：仅提交后端 update_task 支持的字段 */
+  /** 编辑保存：基础字段 + 扩展字段（P0-T2 起可回改估时/优先级/阻塞原因/备注） */
   async function handleUpdate(data: Partial<Task>) {
     if (!task) return;
     try {
@@ -148,6 +188,10 @@ export default function TaskDetail() {
         assignee: data.assignee,
         due_date: data.due_date,
         tags: data.tags,
+        estimated_hours: data.estimated_hours,
+        priority_level: data.priority_level,
+        blocked_reason: data.blocked_reason,
+        notes: data.notes,
       });
       setShowEdit(false);
       await loadTask(task.id);
@@ -292,6 +336,67 @@ export default function TaskDetail() {
             </div>
           )}
 
+          {/* 追溯视图（P1-T8）：本任务关联的会话与提交 */}
+          {(linkedSessions.length > 0 || linkedCommits.length > 0) && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                <ExternalLink className="w-4 h-4" />
+                执行追溯
+              </h3>
+              <div className="space-y-3">
+                {linkedSessions.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1">
+                      <Bot className="w-3.5 h-3.5" /> 关联会话（{linkedSessions.length}）
+                    </p>
+                    <div className="space-y-1">
+                      {linkedSessions.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => navigate(`/sessions/${s.id}`)}
+                          className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-gray-50 text-xs flex items-center gap-2"
+                        >
+                          <StatusBadge status={s.status} />
+                          <span className="truncate flex-1 text-gray-700">{s.title || `会话 ${s.id.slice(0, 8)}`}</span>
+                          {s.started_at && (
+                            <span className="text-gray-400 flex-shrink-0">
+                              {new Date(s.started_at).toLocaleString("zh-CN")}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {linkedCommits.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1">
+                      <GitCommit className="w-3.5 h-3.5" /> 关联提交（{linkedCommits.length}）
+                    </p>
+                    <div className="space-y-1">
+                      {linkedCommits.map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => navigate("/commits")}
+                          className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-gray-50 text-xs flex items-center gap-2"
+                          title="前往提交页查看详情"
+                        >
+                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 flex-shrink-0">
+                            {c.short_hash}
+                          </span>
+                          <span className="truncate flex-1 text-gray-700">{c.message || "(无提交信息)"}</span>
+                          <span className="text-gray-400 flex-shrink-0">
+                            {c.files_changed} 文件 · {new Date(c.created_at).toLocaleDateString("zh-CN")}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* 评论区 */}
           <div>
             <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
@@ -360,7 +465,7 @@ export default function TaskDetail() {
                 title="手动变更状态（仅列出当前状态的合法流转）"
               >
                 <option value={task.status}>{TASK_STATUS_LABEL[task.status] ?? task.status}（当前）</option>
-                {nextTaskStatuses(task.status).map((s) => (
+                {nextTaskStatuses(task.status, transitions).map((s) => (
                   <option key={s} value={s}>
                     {TASK_STATUS_LABEL[s] ?? s}
                   </option>

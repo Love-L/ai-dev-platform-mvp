@@ -843,12 +843,28 @@ impl Database {
         requirements::list_requirements(&self.conn, status_filter)
     }
 
-    pub fn list_requirements_paged(&self, page: u32, limit: u32, status_filter: Option<&str>) -> Result<crate::pagination::PagedResult<Requirement>> {
-        requirements::list_requirements_paged(&self.conn, page, limit, status_filter)
+    pub fn list_requirements_paged(
+        &self,
+        page: u32,
+        limit: u32,
+        status_filter: Option<&str>,
+        project_filter: Option<&str>,
+    ) -> Result<crate::pagination::PagedResult<Requirement>> {
+        requirements::list_requirements_paged(&self.conn, page, limit, status_filter, project_filter)
     }
 
     pub fn get_requirement(&self, id: &str) -> Result<Option<Requirement>> {
         requirements::get_requirement(&self.conn, id)
+    }
+
+    /// 各项目需求数 `(project_id, total, completed)`（聚合）
+    pub fn count_requirements_by_project(&self) -> Result<Vec<(String, i64, i64)>> {
+        requirements::count_requirements_by_project(&self.conn)
+    }
+
+    /// 各项目任务数 `(project_id, total, completed)`（经 requirement 归属项目）
+    pub fn count_tasks_by_project(&self) -> Result<Vec<(String, i64, i64)>> {
+        tasks::count_tasks_by_project(&self.conn)
     }
 
     pub fn update_requirement(&self, id: &str, title: Option<&str>, description: Option<&str>, priority: Option<&str>, status: Option<&str>, prd_content: Option<&str>) -> Result<()> {
@@ -908,8 +924,16 @@ impl Database {
 
     // ==================== 任务操作 ====================
 
-    pub fn create_task(&self, title: &str, requirement_id: Option<&str>, task_type: &str, priority: &str, description: Option<&str>) -> Result<Task> {
-        tasks::create_task(&self.conn, title, requirement_id, task_type, priority, description)
+    pub fn create_task(
+        &self,
+        title: &str,
+        requirement_id: Option<&str>,
+        task_type: &str,
+        priority: &str,
+        description: Option<&str>,
+        project_id: Option<&str>,
+    ) -> Result<Task> {
+        tasks::create_task(&self.conn, title, requirement_id, task_type, priority, description, project_id)
     }
 
     pub fn list_tasks(&self, status_filter: Option<&str>, type_filter: Option<&str>) -> Result<Vec<Task>> {
@@ -986,6 +1010,11 @@ impl Database {
     /// 更新 Agent 状态
     pub fn set_agent_status(&self, id: &str, status: &str) -> Result<()> {
         agents::set_agent_status(&self.conn, id, status)
+    }
+
+    /// 删除 Agent 记录（有运行中会话时拒绝）
+    pub fn delete_agent(&self, id: &str) -> Result<()> {
+        agents::delete_agent(&self.conn, id)
     }
 
     // ==================== 会话消息块（模块 16 / F076） ====================
@@ -1162,13 +1191,37 @@ impl Database {
         agents::finish_agent_session(&self.conn, id, status, exit_code)
     }
 
+    /// 会话终态 → 任务回写（推状态 + 回填实际工时）
+    pub fn sync_task_from_session(&self, session_id: &str) -> Result<bool> {
+        agents::sync_task_from_session(&self.conn, session_id)
+    }
+
     /// 启动时对账：把无真实进程的 `running` 会话标记为 failed
     pub fn reconcile_running_sessions(&self) -> Result<usize> {
         agents::reconcile_running_sessions(&self.conn)
     }
 
-    pub fn get_agent_sessions(&self, agent_id: Option<&str>) -> Result<Vec<AgentSession>> {
-        agents::get_agent_sessions(&self.conn, agent_id)
+    pub fn get_agent_sessions(
+        &self,
+        agent_id: Option<&str>,
+        include_archived: bool,
+    ) -> Result<Vec<AgentSession>> {
+        agents::get_agent_sessions(&self.conn, agent_id, include_archived)
+    }
+
+    /// 重命名会话
+    pub fn rename_session(&self, id: &str, title: &str) -> Result<()> {
+        agents::rename_session(&self.conn, id, title)
+    }
+
+    /// 归档 / 取消归档会话
+    pub fn set_session_archived(&self, id: &str, archived: bool) -> Result<()> {
+        agents::set_session_archived(&self.conn, id, archived)
+    }
+
+    /// 级联删除会话及其消息 / 执行日志 / Token 记录
+    pub fn delete_session_cascade(&self, id: &str) -> Result<()> {
+        agents::delete_session_cascade(&self.conn, id)
     }
 
     // ==================== Token追踪 ====================
@@ -1262,6 +1315,11 @@ impl Database {
         tokens::get_token_usage_by_model(&self.conn)
     }
 
+    /// 近 N 天每日 Token 用量聚合（工作台趋势图）
+    pub fn get_token_usage_by_day(&self, days: i64) -> Result<Vec<DailyUsage>> {
+        tokens::get_token_usage_by_day(&self.conn, days)
+    }
+
     // ==================== PRD Skill 操作 ====================
 
     /// 迁移 prd_skills 表，确保包含新字段
@@ -1327,6 +1385,7 @@ impl Database {
             "model",
             "permission_allowlist",
             "last_event_at",
+            "archived",
         ]
         .into_iter()
         .filter(|col| !session_columns.contains(&col.to_string()))
@@ -1355,6 +1414,7 @@ impl Database {
                     "last_event_at" => {
                         "ALTER TABLE agent_sessions ADD COLUMN last_event_at DATETIME"
                     }
+                    "archived" => "ALTER TABLE agent_sessions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0",
                     _ => continue,
                 };
                 self.conn.execute(ddl, [])?;
@@ -1841,8 +1901,19 @@ impl Database {
         projects::get_project(&self.conn, id)
     }
 
-    pub fn update_project(&self, id: &str, name: Option<&str>, description: Option<&str>, key: Option<&str>, status: Option<&str>) -> Result<()> {
-        projects::update_project(&self.conn, id, name, description, key, status)
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_project(
+        &self,
+        id: &str,
+        name: Option<&str>,
+        description: Option<&str>,
+        key: Option<&str>,
+        status: Option<&str>,
+        start_date: Option<&str>,
+        end_date: Option<&str>,
+        owner_id: Option<&str>,
+    ) -> Result<()> {
+        projects::update_project(&self.conn, id, name, description, key, status, start_date, end_date, owner_id)
     }
 
     pub fn delete_project(&self, id: &str) -> Result<()> {

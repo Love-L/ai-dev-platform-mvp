@@ -82,6 +82,13 @@ impl<'a> AgentService<'a> {
         //    agents.status 只表示注册可用性（available/unavailable）。
         //    此前写入 running 且无人回收，导致 Agent 永久卡在 running（前端误显示"已失效"）。
 
+        // 4. 记录"会话启动"阶段的 Skill 关联（F035）：
+        //    使 skill_execution_logs.execution_phase = session_start 具备真实数据。
+        //    仅在带任务上下文时记录（Skill 经任务→项目解析）。
+        if let Some(tid) = task_id {
+            self.record_session_start_skill(&session.id, tid).await;
+        }
+
         info!("Agent启动成功: session_id={}", session.id);
         Ok(session)
     }
@@ -134,10 +141,8 @@ impl<'a> AgentService<'a> {
 
         // 校验状态流转：仅 running 可终止为 completed，避免对已终态会话重复操作
         let current = db
-            .get_agent_sessions(None)
+            .get_agent_session(session_id)
             .map_err(|e| format!("获取会话失败: {}", e))?
-            .into_iter()
-            .find(|s| s.id == session_id)
             .map(|s| s.status)
             .ok_or_else(|| format!("会话不存在: {}", session_id))?;
 
@@ -155,45 +160,13 @@ impl<'a> AgentService<'a> {
         Ok(())
     }
 
-    /// 基于任务自动创建会话
-    pub async fn start_agent_from_task(&self, task_id: &str) -> Result<AgentSession, String> {
-        let db_ref = self.db.ok_or("数据库未初始化")?;
-        info!("基于任务创建会话: task_id={}", task_id);
-
-        // 获取可用的Agent
-        let agents = {
-            let db = db_ref.lock().await;
-            db.get_agents().map_err(|e| {
-                error!("获取Agent列表失败: {}", e);
-                format!("获取Agent列表失败: {}", e)
-            })?
-        };
-
-        let agent = agents.first().ok_or("没有可用的Agent")?;
-
-        // 创建会话
-        let session = {
-            let db = db_ref.lock().await;
-            db.create_agent_session(&agent.id, Some(task_id))
-                .map_err(|e| {
-                    error!("创建会话失败: {}", e);
-                    format!("创建会话失败: {}", e)
-                })?
-        };
-
-        info!("会话创建成功: session_id={}", session.id);
-
-        // 记录"会话启动"阶段的 Skill 关联，
-        // 使 skill_execution_logs.execution_phase = session_start 具备真实数据
-        self.record_session_start_skill(&session.id, task_id).await;
-
-        Ok(session)
-    }
-
     /// 记录"会话启动"阶段的 Skill 关联（F035）。
     ///
     /// 解析链路：任务 → 项目（优先 `tasks.project_id`，其次所属需求的 `project_id`）
     /// → 项目默认 Skill。未匹配到 Skill 时**不写占位记录**，避免污染统计口径。
+    ///
+    /// 注意：这是**推定绑定**（会话启动时项目默认 Skill 会注入上下文），
+    /// 并非 Agent 实际使用证明；`output_summary` 已标注，避免 use_count 被误读。
     async fn record_session_start_skill(&self, session_id: &str, task_id: &str) {
         let Some(db_ref) = self.db else { return };
         let db = db_ref.lock().await;
@@ -234,8 +207,11 @@ impl<'a> AgentService<'a> {
             &skill.name,
             &skill.skill_type,
             "session_start",
-            Some(&serde_json::json!({ "task_id": task_id }).to_string()),
-            Some("会话启动时绑定项目默认 Skill"),
+            Some(&serde_json::json!({
+                "task_id": task_id,
+                "inferred": true, // 推定绑定，非实际使用证明（P2-S4）
+            }).to_string()),
+            Some("会话启动时推定绑定项目默认 Skill（注入上下文，非实际使用证明）"),
             0,
             "success",
             None,
@@ -249,11 +225,12 @@ impl<'a> AgentService<'a> {
     pub async fn get_agent_sessions(
         &self,
         agent_id: Option<&str>,
+        include_archived: bool,
     ) -> Result<Vec<AgentSession>, String> {
         let db_ref = self.db.ok_or("数据库未初始化")?;
         debug!("获取Agent会话: agent_id={:?}", agent_id);
         let db = db_ref.lock().await;
-        db.get_agent_sessions(agent_id)
+        db.get_agent_sessions(agent_id, include_archived)
             .map_err(|e| {
                 error!("获取Agent会话失败: {}", e);
                 format!("获取Agent会话失败: {}", e)

@@ -77,6 +77,104 @@ pub fn build_prd_prompt(
 }
 
 /// 构建"需求智能完善"提示词（输出 JSON 字段契约与 API 通道一致）。
+/// LLM 拆解出的候选任务（前端勾选后批量落库）
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BreakdownTask {
+    pub title: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default = "default_task_type")]
+    pub task_type: String,
+    #[serde(default = "default_priority")]
+    pub priority: String,
+}
+
+fn default_task_type() -> String {
+    "development".to_string()
+}
+
+fn default_priority() -> String {
+    "P2".to_string()
+}
+
+/// 消毒 LLM 输出：枚举白名单 + 数量上限，防止脏值直落任务表
+pub fn sanitize_breakdown_tasks(tasks: Vec<BreakdownTask>) -> Vec<BreakdownTask> {
+    tasks
+        .into_iter()
+        .filter(|t| !t.title.trim().is_empty())
+        .take(20)
+        .map(|mut t| {
+            t.title = t.title.trim().to_string();
+            if !["development", "testing", "bug_fix"].contains(&t.task_type.as_str()) {
+                t.task_type = "development".to_string();
+            }
+            if !["P0", "P1", "P2", "P3"].contains(&t.priority.as_str()) {
+                t.priority = "P2".to_string();
+            }
+            t.description = t.description.trim().to_string();
+            t
+        })
+        .collect()
+}
+
+/// 智能拆解 prompt：需求 + PRD → 结构化任务清单（P1-⑪）
+pub fn build_breakdown_prompt(title: &str, description: &str, prd: &str) -> String {
+    format!(
+        r#"你是一个资深技术负责人。请把以下需求拆解为可执行的开发任务清单。
+
+## 需求
+- 标题: {}
+- 描述: {}
+
+## PRD
+{}
+
+## 输出要求
+只输出一个 JSON 数组（不要任何其他文字、解释或 markdown 围栏），数组每项格式：
+{{"title": "任务标题（动宾短语，15字以内）", "description": "做什么 + 验收要点（1-2句）", "task_type": "development 或 testing 或 bug_fix", "priority": "P0/P1/P2/P3"}}
+
+拆解原则：
+1. 输出 3~8 条任务，按模块与依赖顺序排列（先基础后集成）
+2. 涉及测试的独立成条（task_type=testing），不要混入开发任务
+3. 任务粒度以一名开发 0.5~2 天可完成为准
+4. 不要输出与本需求无关的通用任务（如"搭建 CI"）"#,
+        title, description, prd
+    )
+}
+
+/// 从 LLM 输出解析任务数组：兼容裸数组 / `{"tasks": [...]}` 包裹 / markdown 围栏
+pub fn parse_breakdown_json(text: &str) -> Vec<BreakdownTask> {
+    // 剥掉可能的 ```json ... ``` 围栏
+    let stripped = text
+        .trim()
+        .trim_start_matches("```json")
+        .trim_start_matches("```")
+        .trim_end_matches("```")
+        .trim();
+
+    // 候选1：裸数组（截取首个 '[' 到末个 ']'）
+    if let (Some(start), Some(end)) = (stripped.find('['), stripped.rfind(']')) {
+        if end > start {
+            if let Ok(tasks) = serde_json::from_str::<Vec<BreakdownTask>>(&stripped[start..=end]) {
+                return tasks;
+            }
+        }
+    }
+
+    // 候选2：对象包裹（复用对象提取，挑含 tasks 数组的）
+    for candidate in extract_json_objects(stripped) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(candidate) {
+            if let Some(arr) = v.get("tasks").and_then(|t| t.as_array()) {
+                if let Ok(tasks) = serde_json::from_value::<Vec<BreakdownTask>>(arr.clone().into()) {
+                    return tasks;
+                }
+            }
+        }
+    }
+
+    Vec::new()
+}
+
 pub fn build_enrich_prompt(title: &str, description: &str) -> String {
     format!(
         r#"你是一个专业的需求分析师。请根据以下需求信息，自动分析并输出结构化的补充信息。
@@ -602,6 +700,65 @@ impl ClaudeClient {
         };
 
         Ok((enriched, stats))
+    }
+
+    /// 智能拆解：需求+PRD → 候选任务清单（API 通道，P1-⑪）
+    pub async fn breakdown_tasks(
+        &self,
+        title: &str,
+        description: &str,
+        prd: &str,
+    ) -> Result<(Vec<BreakdownTask>, TokenStats), String> {
+        let prompt = build_breakdown_prompt(title, description, prd);
+
+        info!("调用Claude API智能拆解...");
+        let response = self.client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &self.api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
+            .json(&serde_json::json!({
+                "model": &self.model,
+                "max_tokens": 2048,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            }))
+            .send()
+            .await
+            .map_err(|e| format!("API请求失败: {}", e))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(format!("API返回错误 ({}): {}", status, error_text));
+        }
+
+        let claude_response: ClaudeResponse = response.json().await
+            .map_err(|e| format!("解析响应失败: {}", e))?;
+
+        let text = claude_response.content.first().map(|c| c.text.clone()).unwrap_or_default();
+        let tasks = sanitize_breakdown_tasks(parse_breakdown_json(&text));
+        if tasks.is_empty() {
+            return Err("LLM 未返回可解析的任务清单，请重试或补充 PRD 后再拆解".to_string());
+        }
+
+        info!("智能拆解完成: {} 条任务", tasks.len());
+
+        let usage = claude_response.usage.unwrap_or(ClaudeUsage {
+            input_tokens: 0,
+            output_tokens: 0,
+        });
+        let stats = TokenStats {
+            input_tokens: usage.input_tokens,
+            output_tokens: usage.output_tokens,
+            model: claude_response.model,
+        };
+
+        Ok((tasks, stats))
     }
 }
 

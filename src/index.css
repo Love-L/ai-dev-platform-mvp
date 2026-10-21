@@ -442,3 +442,88 @@ textarea:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* PRD Markdown 渲染排版 */
+.prd-markdown h1,
+.prd-markdown h2,
+.prd-markdown h3,
+.prd-markdown h4 {
+  font-weight: 600;
+  margin: 1em 0 0.5em;
+  color: var(--color-text);
+}
+.prd-markdown h1:first-child,
+.prd-markdown h2:first-child,
+.prd-markdown h3:first-child {
+  margin-top: 0;
+}
+.prd-markdown h1 {
+  font-size: 1.25em;
+}
+.prd-markdown h2 {
+  font-size: 1.1em;
+}
+.prd-markdown h3 {
+  font-size: 1em;
+}
+.prd-markdown p {
+  margin: 0.5em 0;
+}
+.prd-markdown ul,
+.prd-markdown ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+.prd-markdown ul {
+  list-style: disc;
+}
+.prd-markdown ol {
+  list-style: decimal;
+}
+.prd-markdown li {
+  margin: 0.2em 0;
+}
+.prd-markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: var(--color-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.prd-markdown pre {
+  background: var(--color-bg);
+  padding: 0.75em 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.6em 0;
+}
+.prd-markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+.prd-markdown blockquote {
+  border-left: 3px solid var(--color-border);
+  padding-left: 0.75em;
+  margin: 0.6em 0;
+  color: var(--color-text-tertiary);
+}
+.prd-markdown table {
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  width: 100%;
+}
+.prd-markdown th,
+.prd-markdown td {
+  border: 1px solid var(--color-border);
+  padding: 0.4em 0.7em;
+  text-align: left;
+}
+.prd-markdown th {
+  background: var(--color-bg);
+  font-weight: 600;
+}
+.prd-markdown hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 1em 0;
+}

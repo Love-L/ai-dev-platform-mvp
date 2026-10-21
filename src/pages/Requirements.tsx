@@ -2,52 +2,62 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Plus, Search, Trash2, Eye } from "lucide-react";
-import { useRequirementsStore } from "../stores";
+import { useRequirementsStore, useProjectsStore } from "../stores";
 import { StatusBadge, PriorityBadge, ReqTypeBadge } from "../components/Badges";
 import RequirementForm from "../components/RequirementForm";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { createRequirement } from "../lib/tauri";
+import type { Requirement } from "../lib/types";
 import { showToast } from "../components/Toast";
 
 export default function Requirements() {
   const navigate = useNavigate();
   const { requirements, loading, fetchRequirements, removeRequirement } = useRequirementsStore();
+  const { projects, fetchProjects } = useProjectsStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
+  const [projectFilter, setProjectFilter] = useState<string>("");
+  const [confirmDelete, setConfirmDelete] = useState<Requirement | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     fetchRequirements();
+    fetchProjects();
   }, []);
 
-  async function handleDelete(id: string) {
-    if (!confirm("确定要删除这个需求吗？")) return;
+  async function handleConfirmDelete() {
+    if (!confirmDelete) return;
     try {
-      await removeRequirement(id);
+      await removeRequirement(confirmDelete.id);
+      showToast("success", "已删除需求");
     } catch (error) {
       console.error("删除失败:", error);
-      showToast("error", `删除需求失败: ${error}`);
+      // 后端对关联任务有校验（人话提示），直接透出
+      showToast("error", `删除失败: ${error}`);
+    } finally {
+      setConfirmDelete(null);
     }
   }
 
-  async function handleCreate(data: any) {
+  async function handleCreate(data: Partial<Requirement>) {
     try {
-      const req = await createRequirement(
-        data.title,
-        data.description,
-        data.priority,
-        data.project_id,
-        data.module,
-        data.source,
-        data.source_detail,
-        data.product_owner,
-        data.developer,
-        data.tester,
-        data.business_priority,
-        data.estimated_effort,
-        data.tags,
-        data.notes,
-      );
+      const req = await createRequirement({
+        title: data.title ?? "",
+        description: data.description,
+        priority: data.priority,
+        projectId: data.project_id,
+        module: data.module,
+        source: data.source,
+        sourceDetail: data.source_detail,
+        productOwner: data.product_owner,
+        developer: data.developer,
+        tester: data.tester,
+        businessPriority: data.business_priority,
+        estimatedEffort: data.estimated_effort,
+        tags: data.tags,
+        notes: data.notes,
+      });
       setShowCreateModal(false);
       await fetchRequirements();
       navigate(`/requirements/${req.id}`);
@@ -64,7 +74,9 @@ export default function Requirements() {
       req.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchStatus = !statusFilter || req.status === statusFilter;
     const matchType = !typeFilter || req.requirement_type === typeFilter;
-    return matchSearch && matchStatus && matchType;
+    const matchProject =
+      !projectFilter || (projectFilter === "__none__" ? !req.project_id : req.project_id === projectFilter);
+    return matchSearch && matchStatus && matchType && matchProject;
   });
 
   if (loading) {
@@ -141,6 +153,19 @@ export default function Requirements() {
           <option value="optimization">技术优化</option>
           <option value="tech_debt">技术债</option>
         </select>
+        <select
+          value={projectFilter}
+          onChange={(e) => setProjectFilter(e.target.value)}
+          className="select w-full sm:w-40"
+        >
+          <option value="">全部项目</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+          <option value="__none__">未归属项目</option>
+        </select>
       </div>
 
       {/* 需求列表 */}
@@ -198,7 +223,7 @@ export default function Requirements() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDelete(req.id);
+                    setConfirmDelete(req);
                   }}
                   className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                   style={{ color: "var(--color-text-tertiary)" }}
@@ -212,6 +237,18 @@ export default function Requirements() {
           ))
         )}
       </div>
+
+      {/* 删除确认 */}
+      {confirmDelete && (
+        <ConfirmDialog
+          danger
+          title="删除需求"
+          message={`确定要删除「${confirmDelete.title}」吗？\n该需求下存在关联任务时将无法删除，请先处理任务。PRD 内容会一并删除且不可恢复。`}
+          confirmLabel="删除"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
 
       {/* 创建弹窗 */}
       {showCreateModal && <RequirementForm onSubmit={handleCreate} onCancel={() => setShowCreateModal(false)} />}

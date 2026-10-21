@@ -71,7 +71,18 @@ pub fn get_project(conn: &Connection, id: &str) -> Result<Option<Project>> {
     }
 }
 
-pub fn update_project(conn: &Connection, id: &str, name: Option<&str>, description: Option<&str>, key: Option<&str>, status: Option<&str>) -> Result<()> {
+#[allow(clippy::too_many_arguments)]
+pub fn update_project(
+    conn: &Connection,
+    id: &str,
+    name: Option<&str>,
+    description: Option<&str>,
+    key: Option<&str>,
+    status: Option<&str>,
+    start_date: Option<&str>,
+    end_date: Option<&str>,
+    owner_id: Option<&str>,
+) -> Result<()> {
     let now = chrono::Utc::now().to_rfc3339();
     let mut updates = Vec::new();
     let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
@@ -80,6 +91,9 @@ pub fn update_project(conn: &Connection, id: &str, name: Option<&str>, descripti
     if let Some(d) = description { updates.push("description = ?"); params.push(Box::new(d.to_string())); }
     if let Some(k) = key { updates.push("key = ?"); params.push(Box::new(k.to_string())); }
     if let Some(s) = status { updates.push("status = ?"); params.push(Box::new(s.to_string())); }
+    if let Some(sd) = start_date { updates.push("start_date = ?"); params.push(Box::new(sd.to_string())); }
+    if let Some(ed) = end_date { updates.push("end_date = ?"); params.push(Box::new(ed.to_string())); }
+    if let Some(o) = owner_id { updates.push("owner_id = ?"); params.push(Box::new(o.to_string())); }
 
     if updates.is_empty() { return Ok(()); }
 

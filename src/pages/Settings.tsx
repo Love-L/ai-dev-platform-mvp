@@ -1,13 +1,24 @@
 import { useEffect, useState } from "react";
-import { Save, Key, FolderOpen, Info, FileText, ChevronDown, ChevronUp, Terminal, RefreshCw } from "lucide-react";
+import {
+  Save,
+  Key,
+  FolderOpen,
+  Info,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  Terminal,
+  RefreshCw,
+  Languages,
+} from "lucide-react";
 import { listPrdSkills, getAgents } from "../lib/tauri";
 import type { PrdSkill } from "../lib/types";
 import { useSettingsStore } from "../stores";
-import { useI18n } from "../lib/i18n";
+import { useI18n, LOCALES, type Locale } from "../lib/i18n";
 
 export default function Settings() {
   const { fetchSettings, saveSetting } = useSettingsStore();
-  const { t } = useI18n();
+  const { t, locale, setLocale } = useI18n();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [skills, setSkills] = useState<PrdSkill[]>([]);
@@ -28,6 +39,8 @@ export default function Settings() {
   const [agentsList, setAgentsList] = useState<
     { id: string; display_name: string; binary_path: string; status: string }[]
   >([]);
+  /** 常用开场白（每行一条，会话冷启动卡展示） */
+  const [openingPromptsText, setOpeningPromptsText] = useState("");
 
   useEffect(() => {
     loadSettings();
@@ -46,6 +59,7 @@ export default function Settings() {
         "default_agent_path",
         "session_allowed_tools",
         "max_concurrent_sessions",
+        "session_opening_prompts",
       ];
       await fetchSettings(keys);
 
@@ -63,6 +77,14 @@ export default function Settings() {
       setDefaultAgent(fresh["default_agent_path"] || "");
       setAllowedTools(fresh["session_allowed_tools"] || "");
       setMaxSessions(fresh["max_concurrent_sessions"] || "3");
+
+      // 常用开场白：JSON string[] → 每行一条
+      try {
+        const prompts = JSON.parse(fresh["session_opening_prompts"] || "[]");
+        if (Array.isArray(prompts)) setOpeningPromptsText(prompts.join("\n"));
+      } catch {
+        // 非法 JSON 忽略，使用默认空
+      }
 
       const skillsData = await listPrdSkills();
       setSkills(skillsData);
@@ -103,6 +125,15 @@ export default function Settings() {
         saveSetting("default_agent_path", defaultAgent),
         saveSetting("session_allowed_tools", allowedTools),
         saveSetting("max_concurrent_sessions", String(Math.min(16, Math.max(1, Number(maxSessions) || 3)))),
+        saveSetting(
+          "session_opening_prompts",
+          JSON.stringify(
+            openingPromptsText
+              .split("\n")
+              .map((s) => s.trim())
+              .filter(Boolean),
+          ),
+        ),
       ]);
     } catch (error) {
       console.error("保存设置失败:", error);
@@ -162,6 +193,33 @@ export default function Settings() {
           <Save className="w-4 h-4" />
           {saving ? t("settings.saving", "保存中...") : t("settings.save", "保存设置")}
         </button>
+      </div>
+
+      {/* 界面设置（语言切换从侧边栏迁入） */}
+      <div className="panel">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="p-1.5 rounded-lg" style={{ background: "var(--color-primary-subtle)" }}>
+            <Languages className="w-4 h-4" style={{ color: "var(--color-primary)" }} />
+          </div>
+          <h2 className="panel-title">{t("settings.interface", "界面设置")}</h2>
+        </div>
+        <div>
+          <label className="label">{t("settings.language", "界面语言")}</label>
+          <select
+            value={locale}
+            onChange={(e) => setLocale(e.target.value as Locale)}
+            className="select w-full max-w-xs"
+          >
+            {LOCALES.map((l) => (
+              <option key={l.value} value={l.value}>
+                {l.value === "zh-CN" ? "中文" : "English"}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs mt-1.5" style={{ color: "var(--color-text-tertiary)" }}>
+            切换后立即生效并自动记住（{t("settings.languageHint", "未翻译的文案将回退显示中文")}）
+          </p>
+        </div>
       </div>
 
       {/* LLM 设置 */}
@@ -261,6 +319,20 @@ export default function Settings() {
           />
           <p className="text-xs mt-1.5" style={{ color: "var(--color-text-tertiary)" }}>
             逗号分隔；新会话启动时预授权这些工具，避免调用即被权限策略拒绝。会话运行中被拒的工具也可在消息卡片中放行并沉淀到该会话白名单。
+          </p>
+        </div>
+
+        <div>
+          <label className="label">常用开场白</label>
+          <textarea
+            rows={3}
+            value={openingPromptsText}
+            onChange={(e) => setOpeningPromptsText(e.target.value)}
+            placeholder={"先阅读任务与所属需求，列出实现计划并确认关键取舍，再开始编码。"}
+            className="input resize-none text-sm"
+          />
+          <p className="text-xs mt-1.5" style={{ color: "var(--color-text-tertiary)" }}>
+            每行一条；空会话的冷启动引导区会展示这些开场白，点击即可发送给 Agent。
           </p>
         </div>
       </div>

@@ -229,6 +229,10 @@ fn main() {
             commands::generate_prd,
             commands::generate_prd_streaming,
             commands::enrich_requirement,
+            commands::generate_task_breakdown,
+            commands::list_prd_versions,
+            commands::restore_prd_version,
+            commands::get_requirement_transitions,
             // 任务管理
             commands::create_task,
             commands::list_tasks,
@@ -238,6 +242,7 @@ fn main() {
             commands::update_task,
             commands::list_tasks_by_project,
             commands::list_tasks_by_requirement,
+            commands::get_task_transitions,
             // 任务评论
             commands::create_task_comment,
             commands::list_task_comments,
@@ -246,10 +251,13 @@ fn main() {
             commands::discover_agents,
             commands::get_agents,
             commands::verify_agents,
+            commands::add_agent,
+            commands::delete_agent,
             commands::start_agent,
             commands::create_session_from_task,
             commands::stop_agent,
             commands::get_agent_sessions,
+            commands::get_agent_session,
             commands::link_session_task,
             // 会话交互与消息（模块 16）
             commands::start_structured_session,
@@ -259,6 +267,12 @@ fn main() {
             commands::set_session_mode,
             commands::resume_session,
             commands::save_session_attachment,
+            // 会话管理（P1：重命名 / 归档 / 删除 / 导出 + P2 原子重建）
+            commands::rename_agent_session,
+            commands::set_agent_session_archived,
+            commands::delete_agent_session,
+            commands::export_agent_session,
+            commands::force_rebuild_session,
             // Token追踪
             commands::get_token_usage,
             commands::get_token_usage_summary,
@@ -305,6 +319,7 @@ fn main() {
             commands::get_project,
             commands::update_project,
             commands::delete_project,
+            commands::get_projects_overview,
             // 项目 Skill 配置
             commands::list_project_skills,
             commands::add_project_skill,
@@ -339,6 +354,10 @@ fn main() {
             commands::git_create_commit,
             commands::git_log,
             commands::list_git_commits,
+            commands::git_list_branches,
+            commands::git_switch_branch,
+            commands::git_show_files,
+            commands::git_count_commits,
             // 数据导入导出
             commands::export_data,
             commands::import_data,

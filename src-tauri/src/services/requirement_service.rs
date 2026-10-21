@@ -18,6 +18,7 @@ pub struct RequirementExtFields<'a> {
     pub estimated_effort: Option<f64>,
     pub tags: Option<&'a str>,
     pub notes: Option<&'a str>,
+    pub attachments: Option<&'a str>,
 }
 
 impl<'a> RequirementExtFields<'a> {
@@ -33,6 +34,7 @@ impl<'a> RequirementExtFields<'a> {
             || self.estimated_effort.is_some()
             || self.tags.is_some()
             || self.notes.is_some()
+            || self.attachments.is_some()
     }
 }
 
@@ -112,17 +114,19 @@ impl<'a> RequirementService<'a> {
         &self,
         params: &crate::pagination::PaginationParams,
         status: Option<&str>,
+        project_id: Option<&str>,
     ) -> Result<crate::pagination::PagedResult<Requirement>, String> {
         debug!(
-            "查询需求列表（分页）: page={}, page_size={}, offset={}, status={:?}",
+            "查询需求列表（分页）: page={}, page_size={}, offset={}, status={:?}, project_id={:?}",
             params.page,
             params.page_size,
             params.offset(),
-            status
+            status,
+            project_id
         );
 
         let db = self.db.lock().await;
-        let result = db.list_requirements_paged(params.page, params.limit(), status)
+        let result = db.list_requirements_paged(params.page, params.limit(), status, project_id)
             .map_err(|e| {
                 tracing::error!("获取需求列表失败: {}", e);
                 format!("获取需求列表失败: {}", e)
@@ -197,7 +201,7 @@ impl<'a> RequirementService<'a> {
                     ext.business_priority,
                     ext.estimated_effort,
                     None, // actual_effort
-                    None, // attachments
+                    ext.attachments,
                     ext.tags,
                     ext.notes,
                 )

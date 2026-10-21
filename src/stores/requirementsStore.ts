@@ -27,7 +27,7 @@ export const useRequirementsStore = create<RequirementsState>((set, get) => ({
   },
 
   addRequirement: async (title, desc, priority) => {
-    const req = await createRequirement(title, desc, priority);
+    const req = await createRequirement({ title, description: desc, priority });
     await get().fetchRequirements();
     return req;
   },

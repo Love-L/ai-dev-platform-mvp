@@ -5,6 +5,10 @@ import {
   gitGetDiff,
   gitGetStatus,
   gitCreateCommit,
+  gitListBranches,
+  gitSwitchBranch,
+  gitShowFiles,
+  gitCountCommits,
   getSetting,
   listGitCommits,
   listTasks,
@@ -42,6 +46,13 @@ export default function Commits() {
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [linkTaskId, setLinkTaskId] = useState("");
   const [linkSessionId, setLinkSessionId] = useState("");
+  // 分支切换
+  const [branches, setBranches] = useState<string[]>([]);
+  const [switching, setSwitching] = useState(false);
+  // 真实提交计数（P1-C3：git rev-list 统计，非 log 窗口估算）
+  const [commitStats, setCommitStats] = useState<{ total: number; today: number; week: number } | null>(null);
+  // 展开提交时该提交涉及的文件列表
+  const [commitFiles, setCommitFiles] = useState<Array<{ status: string; path: string }>>([]);
 
   const loadCommits = useCallback(async (dir: string) => {
     try {
@@ -57,7 +68,7 @@ export default function Commits() {
       setCommits(records);
     } catch (err) {
       console.error("Failed to load commits:", err);
-      setError(`Failed to load commits: ${err}`);
+      setError(`加载提交历史失败: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -70,6 +81,28 @@ export default function Commits() {
       setUncommittedChanges(status.total_changes);
     } catch (err) {
       console.error("Failed to get branch:", err);
+    }
+  }, []);
+
+  /** 加载本地分支列表（用于切换） */
+  const loadBranches = useCallback(async (dir: string) => {
+    try {
+      const result = await gitListBranches(dir);
+      setBranches(result?.branches ?? []);
+    } catch (err) {
+      console.error("Failed to load branches:", err);
+      setBranches([]);
+    }
+  }, []);
+
+  /** 加载真实提交计数 */
+  const loadStats = useCallback(async (dir: string) => {
+    try {
+      const stats = await gitCountCommits(dir);
+      setCommitStats(typeof stats?.total === "number" ? stats : null);
+    } catch (err) {
+      console.error("Failed to load commit stats:", err);
+      setCommitStats(null);
     }
   }, []);
 
@@ -103,15 +136,28 @@ export default function Commits() {
         return;
       }
       setWorkDir(dir);
-      await Promise.all([loadCommits(dir), loadBranch(dir), loadPlatformCommits(), loadLinkOptions()]);
+      await Promise.all([
+        loadCommits(dir),
+        loadBranch(dir),
+        loadBranches(dir),
+        loadStats(dir),
+        loadPlatformCommits(),
+        loadLinkOptions(),
+      ]);
     })();
-  }, [loadCommits, loadBranch, loadPlatformCommits, loadLinkOptions]);
+  }, [loadCommits, loadBranch, loadBranches, loadStats, loadPlatformCommits, loadLinkOptions]);
 
   async function handleRefresh() {
     if (!workDir) return;
     setRefreshing(true);
     try {
-      await Promise.all([loadCommits(workDir), loadBranch(workDir), loadPlatformCommits(), loadLinkOptions()]);
+      await Promise.all([
+        loadCommits(workDir),
+        loadBranch(workDir),
+        loadStats(workDir),
+        loadPlatformCommits(),
+        loadLinkOptions(),
+      ]);
     } finally {
       setRefreshing(false);
     }
@@ -122,11 +168,21 @@ export default function Commits() {
     setCommitting(true);
     try {
       // 携带任务/会话关联，使提交可追溯到具体工作项（F060）
-      await gitCreateCommit(workDir, commitMessage.trim(), linkTaskId || undefined, linkSessionId || undefined);
+      const result = await gitCreateCommit(
+        workDir,
+        commitMessage.trim(),
+        linkTaskId || undefined,
+        linkSessionId || undefined,
+      );
       setCommitMessage("");
       setLinkTaskId("");
       setLinkSessionId("");
-      showToast("success", linkTaskId || linkSessionId ? "提交成功，并已关联任务/会话" : "提交成功");
+      // 追溯记录落库失败时透出警告（Git 提交本身已成功）
+      if (result?.db_warning) {
+        showToast("warning", result.db_warning);
+      } else {
+        showToast("success", linkTaskId || linkSessionId ? "提交成功，并已关联任务/会话" : "提交成功");
+      }
       await Promise.all([loadCommits(workDir), loadBranch(workDir), loadPlatformCommits()]);
     } catch (err) {
       console.error("Failed to commit:", err);
@@ -152,13 +208,35 @@ export default function Commits() {
     setDiffLoading(true);
 
     try {
-      const diff = await gitGetDiff(workDir);
+      // 传 commit hash 查看该提交本身的差异（此前误查工作区，所有提交显示同一份 diff）+ 涉及文件
+      const [diff, files] = await Promise.all([
+        gitGetDiff(workDir, undefined, commit.hash),
+        gitShowFiles(workDir, commit.hash).catch(() => []),
+      ]);
       setCommitDiff(diff);
+      setCommitFiles(files);
     } catch (err) {
       console.error("Failed to load diff:", err);
-      setCommitDiff(`Error loading diff: ${err}`);
+      setCommitDiff(`加载该提交的 diff 失败: ${err}`);
+      setCommitFiles([]);
     } finally {
       setDiffLoading(false);
+    }
+  }
+
+  /** 切换分支并刷新提交历史 */
+  async function handleSwitchBranch(branch: string) {
+    if (!workDir || !branch || branch === selectedBranch || switching) return;
+    setSwitching(true);
+    try {
+      const result = await gitSwitchBranch(workDir, branch);
+      showToast("success", result.message);
+      setSelectedBranch(result.branch);
+      await Promise.all([loadCommits(workDir), loadBranch(workDir), loadBranches(workDir)]);
+    } catch (err) {
+      showToast("error", `切换分支失败: ${err}`);
+    } finally {
+      setSwitching(false);
     }
   }
 
@@ -239,36 +317,24 @@ export default function Commits() {
         </button>
       </div>
 
-      {/* Stats cards */}
+      {/* Stats cards（P1-C3：git rev-list 真实统计，非 log 窗口估算） */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <div className="card p-4">
           <div style={{ color: "var(--color-text-tertiary)", fontSize: "13px" }}>总提交</div>
           <div className="text-2xl font-bold mt-1" style={{ color: "var(--color-text)" }}>
-            {commits.length}
+            {commitStats ? commitStats.total : "-"}
           </div>
         </div>
         <div className="card p-4">
           <div style={{ color: "var(--color-text-tertiary)", fontSize: "13px" }}>今日</div>
           <div className="text-2xl font-bold mt-1" style={{ color: "var(--color-primary)" }}>
-            {
-              commits.filter((c) => {
-                const date = new Date(c.date);
-                const today = new Date();
-                return date.toDateString() === today.toDateString();
-              }).length
-            }
+            {commitStats ? commitStats.today : "-"}
           </div>
         </div>
         <div className="card p-4">
-          <div style={{ color: "var(--color-text-tertiary)", fontSize: "13px" }}>本周</div>
+          <div style={{ color: "var(--color-text-tertiary)", fontSize: "13px" }}>近7天</div>
           <div className="text-2xl font-bold mt-1" style={{ color: "var(--color-success)" }}>
-            {
-              commits.filter((c) => {
-                const date = new Date(c.date);
-                const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-                return date > weekAgo;
-              }).length
-            }
+            {commitStats ? commitStats.week : "-"}
           </div>
         </div>
         <div className="card p-4">
@@ -287,7 +353,23 @@ export default function Commits() {
             style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)" }}
           >
             <GitBranch className="w-4 h-4" style={{ color: "var(--color-text-tertiary)" }} />
-            <span style={{ color: "var(--color-text-secondary)", fontSize: "13px" }}>{selectedBranch}</span>
+            <select
+              value={selectedBranch}
+              onChange={(e) => handleSwitchBranch(e.target.value)}
+              disabled={switching}
+              className="bg-transparent outline-none"
+              style={{ color: "var(--color-text-secondary)", fontSize: "13px" }}
+              title={branches.length > 0 ? "切换分支" : "仅当前分支"}
+            >
+              {[selectedBranch, ...branches.filter((b) => b !== selectedBranch)].map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+            {switching && (
+              <RefreshCw className="w-3 h-3 animate-spin" style={{ color: "var(--color-text-tertiary)" }} />
+            )}
           </div>
         )}
 
@@ -476,6 +558,39 @@ export default function Commits() {
                 {/* Diff area */}
                 {expandedCommit === commit.hash && (
                   <div className="px-4 pb-4 ml-6">
+                    {/* 该提交涉及的文件 */}
+                    {commitFiles.length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {commitFiles.map((f) => (
+                          <span
+                            key={f.path}
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono"
+                            style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}
+                            title={f.path}
+                          >
+                            <span
+                              className="px-1 rounded"
+                              style={{
+                                background: f.status.startsWith("A")
+                                  ? "var(--color-success-light)"
+                                  : f.status.startsWith("D")
+                                    ? "var(--color-danger-light)"
+                                    : "var(--color-primary-subtle)",
+                                color: f.status.startsWith("A")
+                                  ? "var(--color-success)"
+                                  : f.status.startsWith("D")
+                                    ? "var(--color-danger)"
+                                    : "var(--color-primary)",
+                                fontSize: "10px",
+                              }}
+                            >
+                              {f.status}
+                            </span>
+                            <span className="truncate max-w-[260px]">{f.path}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <div className="rounded-lg p-4 overflow-x-auto" style={{ background: "#1e1e2e" }}>
                       {diffLoading ? (
                         <div style={{ color: "#6c7086" }}>加载差异...</div>

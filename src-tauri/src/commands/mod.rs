@@ -52,18 +52,32 @@ async fn first_available_agent(state: &AppState) -> Option<String> {
 ///
 /// `start_agent` 启动进程后与 `pty_reconnect` 重启进程后共用，
 /// 保证无论进程从哪条路径启动，退出时都会回写数据库会话状态。
-fn watch_terminal_session_exit(state: &AppState, pty_id: String, db_session_id: String) {
+fn watch_terminal_session_exit(
+    state: &AppState,
+    app: tauri::AppHandle,
+    pty_id: String,
+    db_session_id: String,
+) {
     let manager = state.pty_manager.clone();
     let db = state.db.clone();
     tauri::async_runtime::spawn(async move {
         if let Some(code) = manager.wait_exit(&pty_id).await {
             let status = if code == 0 { "completed" } else { "failed" };
-            let db = db.lock().await;
-            if let Err(e) = db.finish_agent_session(&db_session_id, status, Some(code)) {
-                error!("回写会话结束状态失败: {}", e);
-            } else {
-                info!("会话 {} 结束: status={}, exit_code={}", db_session_id, status, code);
+            {
+                let db = db.lock().await;
+                if let Err(e) = db.finish_agent_session(&db_session_id, status, Some(code)) {
+                    error!("回写会话结束状态失败: {}", e);
+                } else {
+                    info!("会话 {} 结束: status={}, exit_code={}", db_session_id, status, code);
+                }
+                // P1-T3：会话终态回写关联任务（推状态 + 回填 actual_hours）
+                if status == "completed" {
+                    if let Err(e) = db.sync_task_from_session(&db_session_id) {
+                        tracing::warn!("会话→任务回写失败: session={}, err={}", db_session_id, e);
+                    }
+                }
             }
+            session_driver::emit_session_status(&app, &db_session_id, status);
         }
     });
 }
@@ -351,6 +365,20 @@ async fn start_structured_session_inner(
     let skills_req_id = related_req.clone();
     let skills_project_id = project_id.clone();
 
+    // 无任务关联的会话自动生成可辨识标题（P1：告别 UUID 会话列表）
+    let auto_title = {
+        let agent_label = std::path::Path::new(&agent_path)
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Agent".to_string());
+        let ts = chrono::Local::now().format("%m-%d %H:%M").to_string();
+        format!("{} · {}", agent_label, ts)
+    };
+    let title = task_title
+        .clone()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(auto_title);
+
     let session = {
         let db = state.db.lock().await;
         db.create_agent_session_full(&crate::db::NewAgentSession {
@@ -359,7 +387,7 @@ async fn start_structured_session_inner(
             project_id,
             related_task_id: related_task,
             related_requirement_id: related_req,
-            title: task_title,
+            title: Some(title),
             work_dir,
             agent_path: Some(agent_path.clone()),
             mode: session_mode::STRUCTURED.to_string(),

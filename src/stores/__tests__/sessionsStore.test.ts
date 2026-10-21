@@ -7,7 +7,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 describe("useSessionsStore (L1-017)", () => {
   beforeEach(() => {
-    useSessionsStore.setState({ sessions: [], loading: false, error: null });
+    useSessionsStore.setState({ sessions: [], loading: false, error: null, showArchived: false });
   });
 
   it("initializes with empty state", () => {
@@ -31,7 +31,23 @@ describe("useSessionsStore (L1-017)", () => {
 
     await useSessionsStore.getState().fetchSessions("a1");
 
-    expect(invoke).toHaveBeenCalledWith("get_agent_sessions", { agentId: "a1" });
+    expect(invoke).toHaveBeenCalledWith("get_agent_sessions", {
+      agentId: "a1",
+      includeArchived: false,
+    });
+  });
+
+  it("setShowArchived refetches with includeArchived=true", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    vi.mocked(invoke).mockResolvedValue([{ id: "9", archived: 1 }]);
+
+    await useSessionsStore.getState().setShowArchived(true);
+
+    expect(useSessionsStore.getState().showArchived).toBe(true);
+    expect(invoke).toHaveBeenCalledWith("get_agent_sessions", {
+      agentId: undefined,
+      includeArchived: true,
+    });
   });
 
   it("stopSession calls IPC", async () => {

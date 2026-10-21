@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Brain, Loader2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useSessionMessagesStore } from "../stores/sessionMessagesStore";
 import MessageBubble from "./MessageBubble";
 
@@ -11,6 +12,8 @@ interface SessionChatProps {
   onUseAcceptEdits?: () => void;
   /** 被拒卡片操作进行中（禁用按钮） */
   deniedBusy?: boolean;
+  /** 空会话时的引导区（冷启动任务卡等），缺省展示默认文案 */
+  emptyState?: ReactNode;
 }
 
 /**
@@ -26,6 +29,7 @@ export default function SessionChat({
   onAllowAndRetry,
   onUseAcceptEdits,
   deniedBusy,
+  emptyState,
 }: SessionChatProps) {
   const {
     messages,
@@ -103,12 +107,16 @@ export default function SessionChat({
 
         {!loading && messages.length === 0 && !streamingText && !showThinkingStream && (
           <div className="text-center py-10">
-            <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
-              暂无消息
-            </p>
-            <p className="text-xs mt-1" style={{ color: "var(--color-text-tertiary)" }}>
-              在下方输入指令开始与 Agent 对话
-            </p>
+            {emptyState ?? (
+              <>
+                <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
+                  暂无消息
+                </p>
+                <p className="text-xs mt-1" style={{ color: "var(--color-text-tertiary)" }}>
+                  在下方输入指令开始与 Agent 对话
+                </p>
+              </>
+            )}
           </div>
         )}
 

@@ -1,6 +1,100 @@
 import { useState } from "react";
-import { Brain, ChevronDown, ChevronRight, Coins, Link2, ShieldAlert, Wrench } from "lucide-react";
+import {
+  Brain,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Coins,
+  Copy,
+  FileText,
+  Link2,
+  Paperclip,
+  ShieldAlert,
+  Wrench,
+} from "lucide-react";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import type { SessionMessage } from "../lib/types";
+import { IMAGE_EXT, parseAttachmentBlock } from "../lib/sessionAttachments";
+import { showToast } from "./Toast";
+
+/** 附件展示行：图片缩略图 + 文件名 chip */
+function AttachmentRow({ paths }: { paths: string[] }) {
+  if (paths.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2">
+      {paths.map((p) => {
+        const name = p.split(/[\\/]/).pop() || p;
+        const isImage = IMAGE_EXT.test(p);
+        if (isImage) {
+          return (
+            <span
+              key={p}
+              className="inline-flex items-center gap-1 pl-1 pr-1.5 py-1 rounded-lg text-[11px]"
+              style={{
+                background: "var(--color-bg)",
+                border: "1px solid var(--color-border-subtle)",
+                color: "var(--color-text-secondary)",
+              }}
+              title={p}
+            >
+              <img
+                src={convertFileSrc(p)}
+                alt={name}
+                className="w-8 h-8 rounded object-cover"
+                style={{ background: "var(--color-bg-subtle)" }}
+                onError={(e) => {
+                  // asset 协议 scope 未覆盖时降级为文件图标
+                  const el = e.currentTarget;
+                  el.style.display = "none";
+                }}
+              />
+              <span className="max-w-[140px] truncate">{name}</span>
+            </span>
+          );
+        }
+        return (
+          <span
+            key={p}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px]"
+            style={{
+              background: "var(--color-bg)",
+              border: "1px solid var(--color-border-subtle)",
+              color: "var(--color-text-secondary)",
+            }}
+            title={p}
+          >
+            <FileText className="w-3 h-3" />
+            <span className="max-w-[160px] truncate">{name}</span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 单条消息复制（text 块 hover 出现） */
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      title="复制消息"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        } catch {
+          showToast("error", "复制失败");
+        }
+      }}
+      className="opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity"
+      style={{ color: "var(--color-text-tertiary)", transition: "opacity var(--transition-fast)" }}
+    >
+      {copied ? <Check className="w-3 h-3" style={{ color: "var(--color-success)" }} /> : <Copy className="w-3 h-3" />}
+    </button>
+  );
+}
 
 interface MessageBubbleProps {
   message: SessionMessage;
@@ -336,10 +430,12 @@ export default function MessageBubble({ message, onAllowAndRetry, onUseAcceptEdi
         </p>
       );
     default: {
-      // text
+      // text（user 消息可能携带附件 marker 区块）
       const isUser = message.role === "user";
+      const raw = message.content ?? "";
+      const { body, paths } = parseAttachmentBlock(raw);
       return (
-        <div className={isUser ? "flex justify-end" : "flex justify-start"}>
+        <div className={`group relative ${isUser ? "flex justify-end" : "flex justify-start"}`}>
           <div
             className="max-w-[85%] rounded-xl px-3.5 py-2.5"
             style={
@@ -348,7 +444,16 @@ export default function MessageBubble({ message, onAllowAndRetry, onUseAcceptEdi
                 : { background: "var(--color-bg-subtle)", color: "var(--color-text)" }
             }
           >
-            <RichText text={message.content ?? ""} />
+            {body && <RichText text={body} />}
+            {!body && paths.length > 0 && (
+              <p className="text-[12px] opacity-80 flex items-center gap-1">
+                <Paperclip className="w-3 h-3" /> 附件
+              </p>
+            )}
+            <AttachmentRow paths={paths} />
+          </div>
+          <div className="absolute -top-2 right-0">
+            <CopyButton text={raw} />
           </div>
         </div>
       );

@@ -1,14 +1,35 @@
 use rusqlite::{Connection, Result, params};
 use super::models::{Task, TaskComment};
 
-pub fn create_task(conn: &Connection, title: &str, requirement_id: Option<&str>, task_type: &str, priority: &str, description: Option<&str>) -> Result<Task> {
+pub fn create_task(
+    conn: &Connection,
+    title: &str,
+    requirement_id: Option<&str>,
+    task_type: &str,
+    priority: &str,
+    description: Option<&str>,
+    project_id: Option<&str>,
+) -> Result<Task> {
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
 
+    // 未显式传 project_id 时经需求自动归属项目（任务必须可计入项目统计）
+    let effective_project_id = match project_id {
+        Some(pid) => Some(pid.to_string()),
+        None => requirement_id.and_then(|rid| {
+            conn.query_row(
+                "SELECT project_id FROM requirements WHERE id = ?1",
+                params![rid],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .unwrap_or(None)
+        }),
+    };
+
     conn.execute(
-        "INSERT INTO tasks (id, requirement_id, title, description, task_type, status, priority, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)",
-        params![id, requirement_id, title, description, task_type, priority, now, now],
+        "INSERT INTO tasks (id, requirement_id, title, description, task_type, status, priority, project_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)",
+        params![id, requirement_id, title, description, task_type, priority, effective_project_id, now, now],
     )?;
 
     Ok(Task {
@@ -35,7 +56,7 @@ pub fn create_task(conn: &Connection, title: &str, requirement_id: Option<&str>,
         attachments: None,
         created_at: now.clone(),
         updated_at: now,
-        project_id: None,
+        project_id: effective_project_id,
         skill_config: None,
         mcp_config: None,
     })
@@ -92,6 +113,27 @@ pub fn list_tasks(conn: &Connection, status_filter: Option<&str>, type_filter: O
             skill_config: row.get(24)?,
             mcp_config: row.get(25)?,
         })
+    })?;
+
+    rows.collect()
+}
+
+/// 各项目任务计数 `(project_id, total, completed)`（工作台/项目列表聚合）。
+///
+/// 同时认 `tasks.project_id` 直属与经 requirement 归属（历史数据可能只有后者）。
+pub fn count_tasks_by_project(conn: &Connection) -> Result<Vec<(String, i64, i64)>> {
+    let mut stmt = conn.prepare(
+        "SELECT COALESCE(t.project_id, r.project_id) AS pid,
+                COUNT(t.id),
+                COALESCE(SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END), 0)
+         FROM tasks t
+         LEFT JOIN requirements r ON t.requirement_id = r.id
+         WHERE COALESCE(t.project_id, r.project_id) IS NOT NULL
+         GROUP BY pid",
+    )?;
+
+    let rows = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?))
     })?;
 
     rows.collect()

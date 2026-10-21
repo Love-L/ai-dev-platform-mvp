@@ -29,6 +29,15 @@ pub async fn create_prd_skill(
     description: Option<String>,
     template: String,
 ) -> Result<PrdSkill, AppError> {
+    // skill_type 白名单（P1-S2）：与内置种子/前端下拉一致，防自由字符串绕过
+    const VALID_TYPES: [&str; 4] = ["feature", "bugfix", "optimization", "refactor"];
+    if !VALID_TYPES.contains(&skill_type.as_str()) {
+        return Err(AppError::legacy(format!(
+            "非法的 skill_type: {}（可选值：{}）",
+            skill_type,
+            VALID_TYPES.join(", ")
+        )));
+    }
     let svc = PrdSkillService::new(&state.db);
     svc.create_skill(&name, &skill_type, description.as_deref(), &template).await.map_err(AppError::legacy)
 }

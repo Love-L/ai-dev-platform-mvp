@@ -64,6 +64,23 @@ pub fn validate_session_status_transition(current: &str, new: &str) -> AppResult
     Ok(())
 }
 
+/// 需求状态机全表（唯一真源）。
+///
+/// 校验与前端流转 UI 均由此派生（前端经 `get_requirement_transitions` 命令消费，
+/// 不再手工复刻），新增状态只改这里。
+pub fn requirement_transitions() -> Vec<(&'static str, Vec<&'static str>)> {
+    vec![
+        ("draft", vec!["reviewing"]),
+        ("reviewing", vec!["approved", "rejected"]),
+        ("approved", vec!["frozen", "in_development"]),
+        ("rejected", vec!["draft"]),
+        ("frozen", vec!["draft", "in_development"]),
+        ("in_development", vec!["testing"]),
+        ("testing", vec!["completed", "in_development"]),
+        ("completed", vec![]),
+    ]
+}
+
 /// 验证需求状态转换
 pub fn validate_requirement_status_transition(current: &str, new: &str) -> AppResult<()> {
     // no-op 转换（状态未变）合法：智能完善/编辑保存会原样回传状态（draft→draft），
@@ -71,17 +88,11 @@ pub fn validate_requirement_status_transition(current: &str, new: &str) -> AppRe
     if current == new {
         return Ok(());
     }
-    let valid_transitions = match current {
-        "draft" => vec!["reviewing"],
-        "reviewing" => vec!["approved", "rejected"],
-        "approved" => vec!["frozen", "in_development"],
-        "rejected" => vec!["draft"],
-        "frozen" => vec!["draft", "in_development"],
-        "in_development" => vec!["testing"],
-        "testing" => vec!["completed", "in_development"],
-        "completed" => vec![],
-        _ => vec![],
-    };
+    let valid_transitions: Vec<&str> = requirement_transitions()
+        .into_iter()
+        .find(|(state, _)| *state == current)
+        .map(|(_, next)| next)
+        .unwrap_or_default();
 
     if !valid_transitions.contains(&new) {
         return Err(AppError::Business(format!(
@@ -92,19 +103,30 @@ pub fn validate_requirement_status_transition(current: &str, new: &str) -> AppRe
     Ok(())
 }
 
+/// 任务状态机全表（唯一真源）。
+///
+/// 校验与前端流转 UI 均由此派生（前端经 `get_task_transitions` 命令消费，
+/// 取代 TaskDetail 手写复刻表），新增状态只改这里。
+pub fn task_transitions() -> Vec<(&'static str, Vec<&'static str>)> {
+    vec![
+        ("pending", vec!["in_progress", "blocked"]),
+        ("in_progress", vec!["completed", "blocked", "pending"]),
+        ("blocked", vec!["pending", "in_progress"]),
+        ("completed", vec!["pending"]),
+    ]
+}
+
 /// 验证任务状态转换
 pub fn validate_task_status_transition(current: &str, new: &str) -> AppResult<()> {
     // no-op 转换（状态未变）合法，同上
     if current == new {
         return Ok(());
     }
-    let valid_transitions = match current {
-        "pending" => vec!["in_progress", "blocked"],
-        "in_progress" => vec!["completed", "blocked", "pending"],
-        "blocked" => vec!["pending", "in_progress"],
-        "completed" => vec!["pending"],
-        _ => vec![],
-    };
+    let valid_transitions: Vec<&str> = task_transitions()
+        .into_iter()
+        .find(|(state, _)| *state == current)
+        .map(|(_, next)| next)
+        .unwrap_or_default();
 
     if !valid_transitions.contains(&new) {
         return Err(AppError::Business(format!(

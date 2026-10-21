@@ -1,9 +1,21 @@
 import { useEffect, useState } from "react";
-import { Bot, RefreshCw, Play, Square, Terminal, AlertTriangle, ShieldCheck, MessageSquare } from "lucide-react";
+import {
+  Bot,
+  RefreshCw,
+  Play,
+  Square,
+  Terminal,
+  AlertTriangle,
+  ShieldCheck,
+  MessageSquare,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Agent } from "../lib/types";
 import { agentCapabilityLabel, parseAgentCapabilities } from "../lib/types";
-import { startStructuredSession } from "../lib/tauri";
+import { startStructuredSession, addAgent, deleteAgent } from "../lib/tauri";
 import { useAgentsStore } from "../stores/agentsStore";
 import { StatusBadge } from "../components/Badges";
 import { showToast } from "../components/Toast";
@@ -14,6 +26,11 @@ export default function Agents() {
   const { agents, sessions, fetchAgents, discover, verify, start, stop } = useAgentsStore();
   const [busyAction, setBusyAction] = useState<"discover" | "verify" | null>(null);
   const [bootstrapped, setBootstrapped] = useState(false);
+  // P1-A2：手动添加自定义路径 Agent
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addPath, setAddPath] = useState("");
+  const [addName, setAddName] = useState("");
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     fetchAgents().finally(() => setBootstrapped(true));
@@ -79,6 +96,36 @@ export default function Agents() {
     }
   }
 
+  /** 手动添加 Agent（后端真实执行 --version 验证） */
+  async function handleAddAgent() {
+    if (!addPath.trim() || adding) return;
+    setAdding(true);
+    try {
+      const agent = await addAgent(addPath.trim(), addName.trim() || undefined);
+      showToast("success", `已添加 ${agent.display_name}（v${agent.version ?? "?"}）`);
+      setShowAddModal(false);
+      setAddPath("");
+      setAddName("");
+      await fetchAgents();
+    } catch (error) {
+      showToast("error", `添加失败: ${error}`);
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  /** 删除 Agent 记录（运行中会话会被后端拒绝） */
+  async function handleDeleteAgent(agent: Agent) {
+    if (!confirm(`确定删除「${agent.display_name}」吗？\n仅删除平台内的记录，不影响本机安装。`)) return;
+    try {
+      await deleteAgent(agent.id);
+      showToast("success", "已删除");
+      await fetchAgents();
+    } catch (error) {
+      showToast("error", `删除失败: ${error}`);
+    }
+  }
+
   const runningSessions = sessions.filter((s) => s.status === "running");
 
   if (!bootstrapped) {
@@ -109,10 +156,18 @@ export default function Agents() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowAddModal(true)}
+            className="btn-secondary"
+            title="手动指定二进制路径添加 Agent（不依赖自动检测）"
+          >
+            <Plus className="w-4 h-4" />
+            手动添加
+          </button>
+          <button
             onClick={handleVerify}
             disabled={busyAction !== null}
             className="btn-secondary"
-            title="校验 Agent 二进制是否仍然存在，并把已无真实进程的会话纠正为失败"
+            title="真实执行 --version 复核二进制可用性，并把已无真实进程的会话纠正为失败"
           >
             <ShieldCheck className={`w-4 h-4 ${busyAction === "verify" ? "animate-pulse" : ""}`} />
             状态复核
@@ -282,7 +337,15 @@ export default function Agents() {
                               : "var(--color-bg-subtle)",
                           color: caps.structured_events ? "var(--color-success)" : "var(--color-text-secondary)",
                         }}
+                        title={
+                          caps.structured_events
+                            ? "L3：支持结构化会话（发送指令、查看回复与思考），仅 Claude 已全链路实测"
+                            : caps.one_shot
+                              ? "L2：支持一次性调用（PRD 生成/智能拆解可用），暂不支持多轮结构化会话"
+                              : "L1：仅能在外部终端使用，平台内仅做检测与启动"
+                        }
                       >
+                        {caps.structured_events ? "L3 " : caps.one_shot ? "L2 " : "L1 "}
                         {agentCapabilityLabel(caps)}
                       </span>
                     </div>
@@ -325,12 +388,77 @@ export default function Agents() {
                     <Play className="w-3.5 h-3.5" />
                     启动
                   </button>
+                  <button
+                    onClick={() => handleDeleteAgent(agent)}
+                    className="w-full btn-secondary text-xs mt-1"
+                    style={{ color: "var(--color-danger)" }}
+                    title="删除平台内记录（不影响本机安装；有运行中会话时不可删除）"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    删除记录
+                  </button>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* P1-A2：手动添加 Agent */}
+      {showAddModal && (
+        <div className="modal-overlay" onClick={() => !adding && setShowAddModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-header">
+              <h3 className="text-base font-semibold" style={{ color: "var(--color-text)" }}>
+                手动添加 Agent
+              </h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-1 rounded-lg"
+                style={{ color: "var(--color-text-tertiary)" }}
+                aria-label="关闭"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="modal-body space-y-4">
+              <div>
+                <label className="label">二进制路径 *</label>
+                <input
+                  type="text"
+                  value={addPath}
+                  onChange={(e) => setAddPath(e.target.value)}
+                  placeholder="如 C:\tools\my-agent.exe 或 /usr/local/bin/my-agent"
+                  className="input font-mono text-xs"
+                  autoFocus
+                />
+                <p className="text-[11px] mt-1" style={{ color: "var(--color-text-tertiary)" }}>
+                  添加时会真实执行 `--version` 验证可用性（5 秒超时）。
+                </p>
+              </div>
+              <div>
+                <label className="label">显示名称</label>
+                <input
+                  type="text"
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  placeholder="留空则使用文件名"
+                  className="input"
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setShowAddModal(false)} disabled={adding} className="btn-secondary">
+                取消
+              </button>
+              <button onClick={handleAddAgent} disabled={!addPath.trim() || adding} className="btn-primary">
+                {adding ? <ShieldCheck className="w-4 h-4 animate-pulse" /> : <Plus className="w-4 h-4" />}
+                验证并添加
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 最近的会话记录 */}
       {sessions.filter((s) => s.status !== "running").length > 0 && (

@@ -294,3 +294,283 @@ pub async fn resume_session(
     )
     .await.map_err(AppError::legacy)
 }
+
+/// 强制重建：先中断运行中的进程，等注册表释放后以新模式/新白名单重建并重发。
+///
+/// 把原先前端"轮询正在运行错误 ×12"的 hack 下沉为后端原子操作。
+#[tauri::command]
+pub async fn force_rebuild_session(
+    state: State<'_, AppState>,
+    app: tauri::AppHandle,
+    session_id: String,
+    mode: Option<String>,
+    permission_mode: Option<String>,
+    model: Option<String>,
+    allowed_tools: Option<Vec<String>>,
+    resend_last: Option<bool>,
+) -> Result<AgentSession, AppError> {
+    // 1. 运行中则中断（结构化会话走 shutdown 信号，终端会话走 PTY kill）
+    if session_driver::is_active(&state.session_registry, &session_id).await {
+        let ctx = {
+            let db = state.db.lock().await;
+            db.get_agent_session(&session_id)
+                .map_err(|e| AppError::Database(e.to_string()))?
+                .ok_or_else(|| AppError::NotFound(format!("会话不存在: {}", session_id)))?
+        };
+        let ctx = build_message_context(state.inner(), &ctx).await;
+        session_driver::interrupt_session(
+            &state.db,
+            &app,
+            &state.session_registry,
+            &session_id,
+            &ctx,
+        )
+        .await
+        .map_err(AppError::legacy)?;
+    } else if let Some(pty_id) = state.pty_manager.find_pty_by_db_session(&session_id).await {
+        if let Err(e) = state.pty_manager.kill(&pty_id).await {
+            tracing::warn!("重建前终止 PTY 失败（继续尝试重建）: {}", e);
+        }
+    }
+
+    // 2. 短轮询等待注册表释放（进程退出是异步的，通常 <500ms）
+    for _ in 0..20 {
+        if !session_driver::is_active(&state.session_registry, &session_id).await {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
+
+    // 3. 重建
+    rebuild_structured_session(
+        state.inner(),
+        &app,
+        &session_id,
+        mode,
+        permission_mode,
+        model,
+        allowed_tools,
+        resend_last.unwrap_or(false),
+    )
+    .await
+    .map_err(AppError::legacy)
+}
+
+/// 重命名会话
+#[tauri::command]
+pub async fn rename_agent_session(
+    state: State<'_, AppState>,
+    session_id: String,
+    title: String,
+) -> Result<(), AppError> {
+    let title = title.trim().to_string();
+    if title.is_empty() {
+        return Err(AppError::Validation("会话标题不能为空".to_string()));
+    }
+    let db = state.db.lock().await;
+    if db
+        .get_agent_session(&session_id)
+        .map_err(|e| AppError::Database(e.to_string()))?
+        .is_none()
+    {
+        return Err(AppError::NotFound(format!("会话 {} 不存在", session_id)));
+    }
+    db.rename_session(&session_id, &title)
+        .map_err(|e| AppError::Database(e.to_string()))
+}
+
+/// 归档 / 取消归档会话（归档后默认列表隐藏，数据与消息全保留）
+#[tauri::command]
+pub async fn set_agent_session_archived(
+    state: State<'_, AppState>,
+    session_id: String,
+    archived: bool,
+) -> Result<(), AppError> {
+    let db = state.db.lock().await;
+    db.set_session_archived(&session_id, archived)
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    Ok(())
+}
+
+/// 删除会话（级联清理消息 / 执行日志 / Token 记录）。
+///
+/// 运行中的结构化会话先中断、终端会话先杀 PTY，等待进程释放后再删数据。
+#[tauri::command]
+pub async fn delete_agent_session(
+    state: State<'_, AppState>,
+    app: tauri::AppHandle,
+    session_id: String,
+) -> Result<(), AppError> {
+    if session_driver::is_active(&state.session_registry, &session_id).await {
+        let session = {
+            let db = state.db.lock().await;
+            db.get_agent_session(&session_id)
+                .map_err(|e| AppError::Database(e.to_string()))?
+                .ok_or_else(|| AppError::NotFound(format!("会话不存在: {}", session_id)))?
+        };
+        let ctx = build_message_context(state.inner(), &session).await;
+        let _ = session_driver::interrupt_session(
+            &state.db,
+            &app,
+            &state.session_registry,
+            &session_id,
+            &ctx,
+        )
+        .await;
+        for _ in 0..20 {
+            if !session_driver::is_active(&state.session_registry, &session_id).await {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+    } else if let Some(pty_id) = state.pty_manager.find_pty_by_db_session(&session_id).await {
+        let _ = state.pty_manager.kill(&pty_id).await;
+    }
+
+    {
+        let db = state.db.lock().await;
+        db.delete_session_cascade(&session_id)
+            .map_err(|e| AppError::Database(format!("删除会话失败: {}", e)))?;
+    }
+    session_driver::emit_session_status(&app, &session_id, "deleted");
+    Ok(())
+}
+
+/// 导出会话为 Markdown（对话块 + 工具调用 + 单轮统计 + 会话元信息）。
+///
+/// 未指定 `out_path` 时写入应用数据目录 `exports/`，返回实际写入路径。
+#[tauri::command]
+pub async fn export_agent_session(
+    state: State<'_, AppState>,
+    app: tauri::AppHandle,
+    session_id: String,
+    out_path: Option<String>,
+) -> Result<String, AppError> {
+    let (session, messages) = {
+        let db = state.db.lock().await;
+        let session = db
+            .get_agent_session(&session_id)
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .ok_or_else(|| AppError::NotFound(format!("会话不存在: {}", session_id)))?;
+        let messages = db
+            .list_session_messages(&session_id, None, 10_000)
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        (session, messages)
+    };
+
+    let mut md = String::new();
+    md.push_str(&format!(
+        "# 会话导出：{}\n\n",
+        session.title.as_deref().unwrap_or(&session.id)
+    ));
+    md.push_str("| 字段 | 值 |\n| --- | --- |\n");
+    md.push_str(&format!("| 会话 ID | `{}` |\n", session.id));
+    md.push_str(&format!(
+        "| Agent | {} |\n",
+        session.agent_name.clone().or(session.agent_path.clone()).unwrap_or_else(|| "未知".to_string())
+    ));
+    md.push_str(&format!("| 状态 | {} |\n", session.status));
+    md.push_str(&format!(
+        "| 模式 | {} |\n",
+        session.mode.as_deref().unwrap_or("terminal")
+    ));
+    if let Some(dir) = session.work_dir.as_deref() {
+        md.push_str(&format!("| 工作目录 | `{}` |\n", dir));
+    }
+    if let Some(model) = session.model.as_deref() {
+        md.push_str(&format!("| 模型 | {} |\n", model));
+    }
+    md.push_str(&format!("| 开始时间 | {} |\n", session.started_at));
+    if let Some(end) = session.ended_at.as_deref() {
+        md.push_str(&format!("| 结束时间 | {} |\n", end));
+    }
+    md.push_str(&format!(
+        "| Token 总量 | {} |\n",
+        session.total_tokens.unwrap_or(0)
+    ));
+    md.push_str(&format!(
+        "| 费用 | ${:.4} |\n\n",
+        session.total_cost.unwrap_or(0.0)
+    ));
+
+    md.push_str("## 对话记录\n\n");
+    for m in &messages {
+        let role = match m.role.as_str() {
+            "user" => "用户",
+            "assistant" => "Agent",
+            _ => "系统",
+        };
+        let kind = m.block_type.as_str();
+        let content = m.content.as_deref().unwrap_or("");
+        match kind {
+            "text" => {
+                md.push_str(&format!("### {} · {}\n\n{}\n\n", role, m.created_at, content));
+            }
+            "thinking" => {
+                if !content.is_empty() {
+                    md.push_str(&format!(
+                        "<details><summary>思考过程 · {}</summary>\n\n```\n{}\n```\n\n</details>\n\n",
+                        m.created_at, content
+                    ));
+                }
+            }
+            "tool_use" => {
+                md.push_str(&format!(
+                    "#### 工具调用 {} · {}\n\n```json\n{}\n```\n\n",
+                    m.tool_name.as_deref().unwrap_or(""),
+                    m.created_at,
+                    content
+                ));
+            }
+            "tool_result" => {
+                md.push_str(&format!(
+                    "#### 工具结果 · {}\n\n```\n{}\n```\n\n",
+                    m.created_at, content
+                ));
+            }
+            "permission_denied" => {
+                md.push_str(&format!(
+                    "#### ⚠ 权限拒绝 · {}\n\n```\n{}\n```\n\n",
+                    m.created_at, content
+                ));
+            }
+            "result" => {
+                md.push_str(&format!("> 单轮统计（{}）：`{}`\n\n", m.created_at, content));
+            }
+            "context" => {
+                md.push_str(&format!("> 会话上下文（{}）：`{}`\n\n", m.created_at, content));
+            }
+            _ => {
+                if !content.is_empty() {
+                    md.push_str(&format!("- [{}] {}\n", m.created_at, content));
+                }
+            }
+        }
+    }
+
+    let path = match out_path.filter(|s| !s.trim().is_empty()) {
+        Some(p) => std::path::PathBuf::from(p),
+        None => {
+            let base = app
+                .path()
+                .app_data_dir()
+                .map_err(|e| AppError::legacy(format!("获取应用数据目录失败: {}", e)))?;
+            let dir = base.join("exports");
+            std::fs::create_dir_all(&dir)
+                .map_err(|e| AppError::legacy(format!("创建导出目录失败: {}", e)))?;
+            let ts = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+            let safe: String = session
+                .title
+                .as_deref()
+                .unwrap_or(&session_id)
+                .chars()
+                .map(|c| if c.is_alphanumeric() || matches!(c, '-' | '_') { c } else { '_' })
+                .collect();
+            dir.join(format!("session_{}_{}.md", safe, ts))
+        }
+    };
+
+    std::fs::write(&path, md).map_err(|e| AppError::legacy(format!("写入导出文件失败: {}", e)))?;
+    info!("会话已导出: session={}, path={:?}", session_id, path);
+    Ok(path.to_string_lossy().to_string())
+}

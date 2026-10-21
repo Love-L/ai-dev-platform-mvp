@@ -43,9 +43,23 @@ pub async fn update_project(
     description: Option<String>,
     key: Option<String>,
     status: Option<String>,
+    start_date: Option<String>,
+    end_date: Option<String>,
+    owner_id: Option<String>,
 ) -> Result<(), AppError> {
     let svc = ProjectService::new(&state.db, &state.cache);
-    svc.update_project(&id, name.as_deref(), description.as_deref(), key.as_deref(), status.as_deref()).await.map_err(AppError::legacy)
+    svc.update_project(
+        &id,
+        name.as_deref(),
+        description.as_deref(),
+        key.as_deref(),
+        status.as_deref(),
+        start_date.as_deref(),
+        end_date.as_deref(),
+        owner_id.as_deref(),
+    )
+    .await
+    .map_err(AppError::legacy)
 }
 
 #[tauri::command]
@@ -78,6 +92,64 @@ pub async fn delete_project(
     }
 
     svc.delete_project(&id).await.map_err(AppError::legacy)
+}
+
+/// 项目总览行（列表页进度条用）
+#[derive(serde::Serialize)]
+pub struct ProjectOverviewRow {
+    pub project_id: String,
+    pub req_total: i64,
+    pub req_completed: i64,
+    pub task_total: i64,
+    pub task_completed: i64,
+}
+
+/// 一次性聚合全部项目的 需求/任务 计数（列表页 N 卡片避免 N 次查询）。
+#[tauri::command]
+pub async fn get_projects_overview(
+    state: State<'_, AppState>,
+) -> Result<Vec<ProjectOverviewRow>, AppError> {
+    let db = state.db.lock().await;
+
+    let mut map: std::collections::HashMap<String, ProjectOverviewRow> =
+        std::collections::HashMap::new();
+
+    for (project_id, total, completed) in db
+        .count_requirements_by_project()
+        .map_err(|e| AppError::legacy(format!("统计需求失败: {}", e)))?
+    {
+        map.insert(
+            project_id.clone(),
+            ProjectOverviewRow {
+                project_id,
+                req_total: total,
+                req_completed: completed,
+                task_total: 0,
+                task_completed: 0,
+            },
+        );
+    }
+    for (project_id, total, completed) in db
+        .count_tasks_by_project()
+        .map_err(|e| AppError::legacy(format!("统计任务失败: {}", e)))?
+    {
+        map.entry(project_id.clone())
+            .or_insert_with(|| ProjectOverviewRow {
+                project_id: project_id.clone(),
+                req_total: 0,
+                req_completed: 0,
+                task_total: 0,
+                task_completed: 0,
+            })
+            .task_total = total;
+        if let Some(row) = map.get_mut(&project_id) {
+            row.task_completed = completed;
+        }
+    }
+
+    let mut rows: Vec<ProjectOverviewRow> = map.into_values().collect();
+    rows.sort_by(|a, b| a.project_id.cmp(&b.project_id));
+    Ok(rows)
 }
 
 // ==================== 项目 Skill 配置命令 ====================

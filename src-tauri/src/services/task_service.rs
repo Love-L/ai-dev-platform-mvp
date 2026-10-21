@@ -9,21 +9,14 @@ use tracing::{info, debug};
 pub struct TaskService<'a> {
     db: &'a Arc<Mutex<Database>>,
     cache: &'a CacheWrapper,
-    agent_service: Option<&'a crate::services::agent_service::AgentService<'a>>,
 }
 
 impl<'a> TaskService<'a> {
     pub fn new(db: &'a Arc<Mutex<Database>>, cache: &'a CacheWrapper) -> Self {
-        Self { db, cache, agent_service: None }
+        Self { db, cache }
     }
 
-    /// 注入外部 AgentService 的构造器（为任务状态联动预留，当前命令层直接构建）
-    #[allow(dead_code)]
-    pub fn with_agent_service(db: &'a Arc<Mutex<Database>>, cache: &'a CacheWrapper, agent_service: &'a crate::services::agent_service::AgentService<'a>) -> Self {
-        Self { db, cache, agent_service: Some(agent_service) }
-    }
-
-    /// 创建任务
+    /// 创建任务（project_id 缺省时经 requirement 自动归属项目）
     pub async fn create_task(
         &self,
         title: &str,
@@ -38,12 +31,13 @@ impl<'a> TaskService<'a> {
         tags: Option<&str>,
         notes: Option<&str>,
         description: Option<&str>,
+        project_id: Option<&str>,
     ) -> Result<Task, String> {
         debug!("创建任务: title={}, type={}", title, task_type);
 
         let result = {
             let db = self.db.lock().await;
-            db.create_task(title, requirement_id, task_type, priority, description)
+            db.create_task(title, requirement_id, task_type, priority, description, project_id)
                 .map_err(|e| {
                     tracing::error!("创建任务失败: {}", e);
                     format!("创建任务失败: {}", e)
@@ -116,6 +110,9 @@ impl<'a> TaskService<'a> {
     }
 
     /// 更新任务状态（带缓存失效）
+    ///
+    /// 说明：曾有「状态置 in_progress 时自动建会话」的自动模式分支，
+    /// 但 agent_service 从未被注入（命令层恒用 `new`），属死代码，已删除。
     pub async fn update_task_status(&self, id: &str, status: &str) -> Result<(), String> {
         debug!("更新任务状态: id={}, status={}", id, status);
 
@@ -126,32 +123,6 @@ impl<'a> TaskService<'a> {
                     tracing::error!("更新任务状态失败: {}", e);
                     format!("更新任务状态失败: {}", e)
                 })?;
-        }
-
-        // 自动模式：任务状态变为in_progress时自动创建会话
-        if status == "in_progress" {
-            if let Some(agent_svc) = self.agent_service {
-                // 检查session_mode设置
-                let session_mode = {
-                    let db = self.db.lock().await;
-                    db.get_setting("session_mode")
-                        .unwrap_or(Some("auto".to_string()))
-                        .unwrap_or_else(|| "auto".to_string())
-                };
-
-                if session_mode == "auto" {
-                    info!("自动模式：为任务 {} 创建会话", id);
-                    match agent_svc.start_agent_from_task(id).await {
-                        Ok(session) => {
-                            info!("自动创建会话成功: session_id={}", session.id);
-                        }
-                        Err(e) => {
-                            tracing::error!("自动创建会话失败: {}", e);
-                            // 不阻塞任务状态更新
-                        }
-                    }
-                }
-            }
         }
 
         // 使相关缓存失效

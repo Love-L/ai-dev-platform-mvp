@@ -334,6 +334,42 @@ fn get_version(path: &PathBuf) -> Option<String> {
     }
 }
 
+/// 真实探测二进制可用性（P1-A2）：执行 `--version` 并解析版本。
+///
+/// 与 `Path::exists` 的区别：能发现"文件在但已损坏/不可执行"的情况。
+/// 超时保护 5 秒（子线程阻塞执行 + 主线程限时等待），避免坏二进制挂死 verify。
+pub fn probe_binary(binary_path: &str) -> Option<String> {
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    let path = PathBuf::from(binary_path);
+    if !path.exists() {
+        return None;
+    }
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut cmd = Command::new(&path);
+        cmd.arg("--version");
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        let _ = tx.send(cmd.output());
+    });
+
+    match rx.recv_timeout(std::time::Duration::from_secs(5)) {
+        Ok(Ok(output)) if output.status.success() => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            parse_version(&stdout)
+        }
+        // 超时或失败：探测不到版本（不单独据此判不可用，交由上层综合判断）
+        _ => None,
+    }
+}
+
 /// 解析版本号
 fn parse_version(output: &str) -> Option<String> {
     use regex::Regex;

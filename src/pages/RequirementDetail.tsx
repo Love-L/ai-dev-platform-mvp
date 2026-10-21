@@ -1,7 +1,24 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { listen } from "@tauri-apps/api/event";
-import { ArrowLeft, Wand2, Save, Loader2, Sparkles, Wrench, Bug } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import {
+  ArrowLeft,
+  Wand2,
+  Save,
+  Loader2,
+  Sparkles,
+  Wrench,
+  Bug,
+  History,
+  FileText,
+  ListChecks,
+  Paperclip,
+  Plus,
+  X,
+  ArrowUpCircle,
+} from "lucide-react";
 import {
   getRequirement,
   updateRequirement,
@@ -10,9 +27,16 @@ import {
   enrichRequirement,
   createTask,
   listTasksByRequirement,
+  listPrdVersions,
+  restorePrdVersion,
+  generateTaskBreakdown,
+  getRequirementTransitions,
+  type PrdVersion,
+  type BreakdownTask,
 } from "../lib/tauri";
-import type { Requirement, PrdSkill } from "../lib/types";
+import type { Requirement, PrdSkill, Task } from "../lib/types";
 import { StatusBadge, PriorityBadge } from "../components/Badges";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { showToast } from "../components/Toast";
 import { useTasksStore } from "../stores";
 
@@ -28,8 +52,11 @@ const REQ_STATUS_LABEL: Record<string, string> = {
   completed: "已完成",
 };
 
-/** 需求状态合法流转（与后端 validation::validate_requirement_status_transition 一致） */
-const REQ_TRANSITIONS: Record<string, string[]> = {
+/**
+ * 状态机兜底表：仅在后端 `get_requirement_transitions` 拉取失败（纯浏览器预览等）时使用。
+ * 正常运行以后端下发为唯一真源（与 validation::requirement_transitions 同源）。
+ */
+const REQ_TRANSITIONS_FALLBACK: Record<string, string[]> = {
   draft: ["reviewing"],
   reviewing: ["approved", "rejected"],
   approved: ["frozen", "in_development"],
@@ -40,13 +67,28 @@ const REQ_TRANSITIONS: Record<string, string[]> = {
   completed: [],
 };
 
-/** 当前状态 + 合法流转目标（去重，当前状态排首位） */
-function statusOptions(current: string): string[] {
-  return Array.from(new Set([current, ...(REQ_TRANSITIONS[current] ?? [])]));
+/** 解析 attachments 字段：JSON 数组优先，退化兼容逗号分隔/换行分隔 */
+function parseAttachmentsField(raw?: string | null): string[] {
+  if (!raw || !raw.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+  } catch {
+    // 非 JSON，走分隔符兼容
+  }
+  return raw
+    .split(/[,\n]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
-function nextReqStatuses(current: string): string[] {
-  return REQ_TRANSITIONS[current] ?? [];
+/** 当前状态 + 合法流转目标（去重，当前状态排首位） */
+function statusOptions(current: string, table: Record<string, string[]>): string[] {
+  return Array.from(new Set([current, ...(table[current] ?? [])]));
+}
+
+function nextReqStatuses(current: string, table: Record<string, string[]>): string[] {
+  return table[current] ?? [];
 }
 
 export default function RequirementDetail() {
@@ -64,6 +106,25 @@ export default function RequirementDetail() {
   const [selectedSkillId, setSelectedSkillId] = useState<string>("");
   /** 流式生成 PRD 期间累积的增量文本（F049） */
   const [streamingText, setStreamingText] = useState("");
+
+  // ---- P0-② PRD 版本保护 ----
+  const [prdView, setPrdView] = useState<"preview" | "source">("preview");
+  const [versions, setVersions] = useState<PrdVersion[]>([]);
+  const [showVersions, setShowVersions] = useState(false);
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
+  const [restoringId, setRestoringId] = useState("");
+
+  // ---- P1-⑪ 智能拆解 ----
+  const [breakdownTasks, setBreakdownTasks] = useState<BreakdownTask[] | null>(null);
+  const [breakdownChecked, setBreakdownChecked] = useState<Set<number>>(new Set());
+  const [breakingDown, setBreakingDown] = useState(false);
+  const [creatingBulk, setCreatingBulk] = useState(false);
+
+  // ---- P2 状态机下发 + 任务联动 + 附件 ----
+  const [transitions, setTransitions] = useState<Record<string, string[]>>(REQ_TRANSITIONS_FALLBACK);
+  const [reqTasks, setReqTasks] = useState<Task[]>([]);
+  const [attachments, setAttachments] = useState<string[]>([]);
+  const [newAttachmentPath, setNewAttachmentPath] = useState("");
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -87,7 +148,22 @@ export default function RequirementDetail() {
     listPrdSkills()
       .then(setSkills)
       .catch(() => {});
+    // 状态机以后端为唯一真源（拉取失败退回兜底表）
+    getRequirementTransitions()
+      .then((table) => {
+        if (Object.keys(table).length > 0) setTransitions(table);
+      })
+      .catch(() => {});
   }, [id]);
+
+  /** 该需求的关联任务（联动提示：全部完成时引导推进需求状态） */
+  async function loadReqTasks(reqId: string) {
+    try {
+      setReqTasks(await listTasksByRequirement(reqId));
+    } catch {
+      // 拉取失败不阻断页面
+    }
+  }
 
   // 订阅流式 PRD 增量（F049）。必须在调用命令前完成注册，且只处理当前需求的事件。
   useEffect(() => {
@@ -131,11 +207,124 @@ export default function RequirementDetail() {
         );
         setTags(data.tags || "");
         setNotes(data.notes || "");
+        // 附件字段：JSON 数组优先，退化兼容逗号分隔
+        setAttachments(parseAttachmentsField(data.attachments));
       }
+      loadReqTasks(reqId);
     } catch (error) {
       console.error("加载需求失败:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ---- P0-② 版本保护 ----
+
+  /** 打开 PRD 前先确认：重新生成会覆盖当前版本（旧版自动留档为快照，可恢复） */
+  function requestGeneratePrd() {
+    if (requirement?.prd_content) setConfirmRegenerate(true);
+    else void handleGeneratePrd();
+  }
+
+  async function handleLoadVersions() {
+    if (!id) return;
+    setShowVersions((v) => !v);
+    if (showVersions) return;
+    try {
+      setVersions(await listPrdVersions(id));
+    } catch (error) {
+      showToast("error", "加载版本历史失败: " + (error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  async function handleRestore(versionId: string) {
+    if (!id) return;
+    setRestoringId(versionId);
+    try {
+      const updated = await restorePrdVersion(id, versionId);
+      setRequirement(updated);
+      setStatus(updated.status);
+      showToast("success", "已恢复该版本的 PRD");
+      setShowVersions(false);
+    } catch (error) {
+      showToast("error", "恢复失败: " + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setRestoringId("");
+    }
+  }
+
+  // ---- P1-⑪ 智能拆解 ----
+
+  async function handleBreakdown() {
+    if (!id) return;
+    setBreakingDown(true);
+    try {
+      const tasks = await generateTaskBreakdown(id);
+      setBreakdownTasks(tasks);
+      setBreakdownChecked(new Set(tasks.map((_, i) => i)));
+    } catch (error) {
+      showToast("error", "智能拆解失败: " + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setBreakingDown(false);
+    }
+  }
+
+  /** 勾选的候选任务批量落库（requirement_id 关联 + 需求内容代入任务描述） */
+  async function handleCreateBreakdownTasks() {
+    if (!id || !requirement || !breakdownTasks || creatingBulk) return;
+    const picked = breakdownTasks.filter((_, i) => breakdownChecked.has(i));
+    if (picked.length === 0) return;
+    setCreatingBulk(true);
+    try {
+      for (const t of picked) {
+        await createTask(
+          t.title,
+          id,
+          t.task_type,
+          t.priority,
+          undefined,
+          requirement.due_date || undefined,
+          undefined,
+          requirement.business_priority || undefined,
+          undefined,
+          requirement.tags || undefined,
+          `由需求「${requirement.title}」智能拆解创建`,
+          `${t.description}\n\n${buildRequirementContent(requirement, t.task_type === "testing" ? "testing" : "development")}`,
+        );
+      }
+      await fetchTasks();
+      showToast("success", `已创建 ${picked.length} 个任务`);
+      setBreakdownTasks(null);
+      navigate("/board");
+    } catch (error) {
+      console.error("批量创建任务失败:", error);
+      showToast("error", "批量创建任务失败: " + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setCreatingBulk(false);
+    }
+  }
+
+  // ---- P2 附件（路径管理，Agent 可读取） ----
+
+  function handleAddAttachment() {
+    const path = newAttachmentPath.trim();
+    if (!path) return;
+    if (attachments.includes(path)) {
+      showToast("warning", "该附件已在列表中");
+      return;
+    }
+    setAttachments([...attachments, path]);
+    setNewAttachmentPath("");
+  }
+
+  async function handleSaveAttachments(next: string[]) {
+    if (!id) return;
+    setAttachments(next);
+    try {
+      await updateRequirement(id, { attachments: JSON.stringify(next) });
+      showToast("success", "附件已保存");
+    } catch (error) {
+      showToast("error", "附件保存失败: " + (error instanceof Error ? error.message : String(error)));
     }
   }
 
@@ -423,7 +612,7 @@ export default function RequirementDetail() {
                     className="select"
                     title="手动变更状态（仅列出当前状态的合法流转，保存时后端复核）"
                   >
-                    {statusOptions(status).map((s) => (
+                    {statusOptions(status, transitions).map((s) => (
                       <option key={s} value={s}>
                         {REQ_STATUS_LABEL[s] ?? s}
                       </option>
@@ -545,17 +734,49 @@ export default function RequirementDetail() {
             </div>
           </div>
 
-          {/* PRD内容 */}
+          {/* PRD内容（P0 快照保护 + P1 Markdown 渲染） */}
           <div className="panel">
             <div className="panel-header">
               <h2 className="panel-title">PRD文档</h2>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                {requirement.prd_content && (
+                  <>
+                    {/* 预览 / 源码切换 */}
+                    <div
+                      className="flex rounded-lg overflow-hidden border"
+                      style={{ borderColor: "var(--color-border)" }}
+                    >
+                      {(["preview", "source"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => setPrdView(mode)}
+                          className="px-2.5 py-1 text-xs font-medium"
+                          style={{
+                            background: prdView === mode ? "var(--color-primary-subtle)" : "transparent",
+                            color: prdView === mode ? "var(--color-primary)" : "var(--color-text-tertiary)",
+                          }}
+                        >
+                          {mode === "preview" ? "预览" : "源码"}
+                        </button>
+                      ))}
+                    </div>
+                    {/* 版本历史 */}
+                    <button
+                      onClick={handleLoadVersions}
+                      className="btn-secondary text-xs"
+                      title="查看 PRD 快照历史（每次生成自动留档）"
+                    >
+                      <History className="w-3.5 h-3.5" />
+                      历史
+                    </button>
+                  </>
+                )}
                 {skills.length > 0 && (
                   <select
                     value={selectedSkillId}
                     onChange={(e) => setSelectedSkillId(e.target.value)}
                     className="select text-xs"
-                    style={{ minWidth: "160px" }}
+                    style={{ minWidth: "150px" }}
                   >
                     <option value="">默认模板</option>
                     {skills.map((skill) => (
@@ -565,12 +786,49 @@ export default function RequirementDetail() {
                     ))}
                   </select>
                 )}
-                <button onClick={handleGeneratePrd} disabled={generating} className="btn-primary">
-                  {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                <button onClick={requestGeneratePrd} disabled={generating} className="btn-primary text-xs">
+                  {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
                   {requirement.prd_content ? "重新生成" : "生成PRD"}
                 </button>
               </div>
             </div>
+
+            {/* 版本历史下拉 */}
+            {showVersions && (
+              <div
+                className="mb-3 rounded-lg border divide-y"
+                style={{ borderColor: "var(--color-border)", background: "var(--color-bg-subtle)" }}
+              >
+                {versions.length === 0 ? (
+                  <p className="px-3 py-2.5 text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+                    暂无快照（历史版本在每次生成时自动留档）
+                  </p>
+                ) : (
+                  versions.slice(0, 10).map((v) => (
+                    <div key={v.id} className="flex items-center gap-2 px-3 py-2">
+                      <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--color-text-tertiary)" }} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs truncate" style={{ color: "var(--color-text-secondary)" }}>
+                          {v.content.split("\n")[0]?.slice(0, 60) || "(空版本)"}
+                        </p>
+                        <p className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>
+                          {new Date(v.created_at).toLocaleString("zh-CN")}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleRestore(v.id)}
+                        disabled={!!restoringId}
+                        className="text-xs px-2 py-1 rounded-md"
+                        style={{ color: "var(--color-primary)" }}
+                        title="恢复此版本为当前 PRD"
+                      >
+                        {restoringId === v.id ? <Loader2 className="w-3 h-3 animate-spin inline" /> : "恢复"}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
 
             {generating && streamingText ? (
               <div
@@ -583,12 +841,21 @@ export default function RequirementDetail() {
                 </span>
               </div>
             ) : requirement.prd_content ? (
-              <div
-                className="rounded-lg p-4 text-sm leading-relaxed whitespace-pre-wrap font-mono"
-                style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}
-              >
-                {requirement.prd_content}
-              </div>
+              prdView === "preview" ? (
+                <div
+                  className="rounded-lg p-4 text-sm leading-relaxed prd-markdown"
+                  style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}
+                >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{requirement.prd_content}</ReactMarkdown>
+                </div>
+              ) : (
+                <div
+                  className="rounded-lg p-4 text-sm leading-relaxed whitespace-pre-wrap font-mono"
+                  style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}
+                >
+                  {requirement.prd_content}
+                </div>
+              )
             ) : (
               <div className="empty-state py-10">
                 <Wand2 className="w-10 h-10 mb-3" style={{ color: "var(--color-border)" }} />
@@ -596,6 +863,77 @@ export default function RequirementDetail() {
                 <p className="empty-state-desc">点击"生成PRD"按钮，AI将根据需求内容自动生成</p>
               </div>
             )}
+          </div>
+
+          {/* P2 附件（路径管理，随任务/会话上下文供 Agent 读取） */}
+          <div className="panel">
+            <div className="panel-header">
+              <h2 className="panel-title flex items-center gap-2">
+                <Paperclip className="w-4 h-4" style={{ color: "var(--color-text-tertiary)" }} />
+                附件
+              </h2>
+            </div>
+            {attachments.length > 0 && (
+              <div className="space-y-1.5 mb-3">
+                {attachments.map((path, i) => (
+                  <div
+                    key={`${path}-${i}`}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs"
+                    style={{ background: "var(--color-bg-subtle)" }}
+                  >
+                    <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--color-text-tertiary)" }} />
+                    <span
+                      className="truncate flex-1 font-mono"
+                      style={{ color: "var(--color-text-secondary)" }}
+                      title={path}
+                    >
+                      {path.split(/[\\/]/).pop()}
+                    </span>
+                    <span
+                      className="truncate max-w-[220px] text-[10px]"
+                      style={{ color: "var(--color-text-tertiary)" }}
+                      title={path}
+                    >
+                      {path}
+                    </span>
+                    <button
+                      onClick={() => handleSaveAttachments(attachments.filter((_, j) => j !== i))}
+                      className="p-1 rounded"
+                      style={{ color: "var(--color-text-tertiary)" }}
+                      title="移除"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newAttachmentPath}
+                onChange={(e) => setNewAttachmentPath(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAddAttachment();
+                }}
+                placeholder="粘贴附件绝对路径（如 D:\design\原型图.png）"
+                className="input text-xs flex-1"
+              />
+              <button
+                onClick={() => {
+                  handleAddAttachment();
+                  if (newAttachmentPath.trim()) handleSaveAttachments([...attachments, newAttachmentPath.trim()]);
+                }}
+                disabled={!newAttachmentPath.trim()}
+                className="btn-secondary text-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                添加
+              </button>
+            </div>
+            <p className="text-[11px] mt-2" style={{ color: "var(--color-text-tertiary)" }}>
+              附件为本机文件路径，Agent 执行任务时可直接读取；从任务一键创建会话时随任务描述带入。
+            </p>
           </div>
         </div>
 
@@ -651,25 +989,61 @@ export default function RequirementDetail() {
                 <select
                   value={requirement.status}
                   onChange={(e) => handleStatusChange(e.target.value)}
-                  disabled={saving || nextReqStatuses(requirement.status).length === 0}
+                  disabled={saving || nextReqStatuses(requirement.status, transitions).length === 0}
                   className="select"
                   title="手动变更状态（仅列出合法流转目标，后端校验）"
                 >
                   <option value={requirement.status}>
                     {REQ_STATUS_LABEL[requirement.status] ?? requirement.status}（当前）
                   </option>
-                  {nextReqStatuses(requirement.status).map((s) => (
+                  {nextReqStatuses(requirement.status, transitions).map((s) => (
                     <option key={s} value={s}>
                       {REQ_STATUS_LABEL[s] ?? s}
                     </option>
                   ))}
                 </select>
-                {nextReqStatuses(requirement.status).length === 0 && (
+                {nextReqStatuses(requirement.status, transitions).length === 0 && (
                   <p className="text-[11px] mt-1" style={{ color: "var(--color-text-tertiary)" }}>
                     已到终态，无可流转目标
                   </p>
                 )}
               </div>
+              {/* P1-⑪ 智能拆解（LLM 按 PRD 出清单，勾选确认后批量落库） */}
+              <button
+                onClick={handleBreakdown}
+                disabled={breakingDown || !!creatingBulk}
+                className="w-full btn-primary justify-start"
+                title="读取 PRD，由 AI 拆解为多条可执行任务（勾选确认后创建）"
+              >
+                {breakingDown ? <Loader2 className="w-4 h-4 animate-spin" /> : <ListChecks className="w-4 h-4" />}
+                {breakingDown ? "AI 拆解中..." : "智能拆解任务"}
+              </button>
+
+              {/* P2 状态↔任务联动：任务全部完成时引导推进需求状态 */}
+              {reqTasks.length > 0 &&
+                reqTasks.every((t) => t.status === "completed") &&
+                (requirement.status === "in_development" || requirement.status === "testing") && (
+                  <div
+                    className="rounded-lg px-3 py-2.5 text-xs space-y-2"
+                    style={{ background: "var(--color-success-light)", color: "var(--color-text-secondary)" }}
+                  >
+                    <p className="flex items-center gap-1.5">
+                      <ArrowUpCircle className="w-3.5 h-3.5" style={{ color: "var(--color-success)" }} />
+                      该需求的 {reqTasks.length} 个任务已全部完成
+                    </p>
+                    <button
+                      onClick={() =>
+                        handleStatusChange(requirement.status === "in_development" ? "testing" : "completed")
+                      }
+                      disabled={saving}
+                      className="btn-secondary text-xs w-full"
+                    >
+                      推进到「
+                      {REQ_STATUS_LABEL[requirement.status === "in_development" ? "testing" : "completed"] ?? ""}」
+                    </button>
+                  </div>
+                )}
+
               <button
                 onClick={() => handleCreateTask("development")}
                 disabled={!!creatingTask}
@@ -705,6 +1079,102 @@ export default function RequirementDetail() {
           </div>
         </div>
       </div>
+
+      {/* P0 重新生成确认：覆盖当前 PRD（旧版自动留档为快照） */}
+      {confirmRegenerate && (
+        <ConfirmDialog
+          title="重新生成 PRD"
+          message="将基于当前需求与 PRD 模板生成新版本，覆盖现有内容。\n当前版本会自动保留为历史快照，可随时在「历史」中查看与恢复。"
+          confirmLabel="生成新版本"
+          onConfirm={() => {
+            setConfirmRegenerate(false);
+            void handleGeneratePrd();
+          }}
+          onCancel={() => setConfirmRegenerate(false)}
+        />
+      )}
+
+      {/* P1 智能拆解清单：勾选确认后批量创建任务 */}
+      {breakdownTasks && (
+        <div className="modal-overlay" onClick={() => !creatingBulk && setBreakdownTasks(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
+            <div className="modal-header">
+              <h3 className="text-base font-semibold flex items-center gap-2" style={{ color: "var(--color-text)" }}>
+                <ListChecks className="w-4 h-4" style={{ color: "var(--color-primary)" }} />
+                智能拆解清单（{breakdownChecked.size}/{breakdownTasks.length} 已选）
+              </h3>
+            </div>
+            <div className="modal-body space-y-2 max-h-[420px] overflow-y-auto">
+              {breakdownTasks.length === 0 ? (
+                <p className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>
+                  未拆解出任务，请补充 PRD 后重试。
+                </p>
+              ) : (
+                breakdownTasks.map((t, i) => (
+                  <label
+                    key={`${t.title}-${i}`}
+                    className="flex items-start gap-2.5 p-2.5 rounded-lg cursor-pointer"
+                    style={{
+                      background: breakdownChecked.has(i) ? "var(--color-primary-subtle)" : "var(--color-bg-subtle)",
+                      border: `1px solid ${breakdownChecked.has(i) ? "var(--color-primary)" : "transparent"}`,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={breakdownChecked.has(i)}
+                      onChange={(e) => {
+                        const next = new Set(breakdownChecked);
+                        if (e.target.checked) next.add(i);
+                        else next.delete(i);
+                        setBreakdownChecked(next);
+                      }}
+                      className="mt-1"
+                      style={{ accentColor: "var(--color-primary)" }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium truncate" style={{ color: "var(--color-text)" }}>
+                          {t.title}
+                        </p>
+                        <span
+                          className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                          style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-tertiary)" }}
+                        >
+                          {t.task_type === "testing" ? "测试" : t.task_type === "bug_fix" ? "修复" : "开发"}
+                        </span>
+                        <span
+                          className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                          style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-tertiary)" }}
+                        >
+                          {t.priority}
+                        </span>
+                      </div>
+                      {t.description && (
+                        <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
+                          {t.description}
+                        </p>
+                      )}
+                    </div>
+                  </label>
+                ))
+              )}
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setBreakdownTasks(null)} disabled={creatingBulk} className="btn-secondary">
+                取消
+              </button>
+              <button
+                onClick={handleCreateBreakdownTasks}
+                disabled={creatingBulk || breakdownChecked.size === 0}
+                className="btn-primary"
+              >
+                {creatingBulk ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                创建选中任务（{breakdownChecked.size}）
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

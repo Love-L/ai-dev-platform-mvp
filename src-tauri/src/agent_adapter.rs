@@ -429,14 +429,17 @@ impl AgentAdapter for CodexAdapter {
         &self,
         agent_path: &str,
         prompt: &str,
-        _model: Option<&str>,
+        model: Option<&str>,
         work_dir: Option<&str>,
     ) -> Option<OneShotInvocation> {
-        Some(OneShotInvocation::with_arg_prompt(
-            agent_path,
-            vec!["exec".to_string(), prompt.to_string()],
-            work_dir,
-        ))
+        // P2-A3：与 Claude/Gemini 对齐，透传 `--model`（codex exec 支持 -m/--model）
+        let mut args = vec!["exec".to_string()];
+        if let Some(m) = model.filter(|m| !m.trim().is_empty()) {
+            args.push("--model".to_string());
+            args.push(m.trim().to_string());
+        }
+        args.push(prompt.to_string());
+        Some(OneShotInvocation::with_arg_prompt(agent_path, args, work_dir))
     }
 }
 

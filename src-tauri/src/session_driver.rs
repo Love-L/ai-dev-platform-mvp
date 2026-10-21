@@ -30,6 +30,17 @@ pub mod events {
     pub const RESULT: &str = "session:result";
     pub const ERROR: &str = "session:error";
     pub const NOTICE: &str = "session:notice";
+    /// 会话生命周期状态变化（`{ session_id, status }`），供列表/详情自动刷新
+    pub const STATUS: &str = "session:status";
+}
+
+/// 推送会话状态变化事件（前端订阅后自动刷新，无需手动轮询）
+pub fn emit_session_status(app: &AppHandle, session_id: &str, status: &str) {
+    emit(
+        app,
+        events::STATUS,
+        serde_json::json!({ "session_id": session_id, "status": status }),
+    );
 }
 
 /// 活动会话句柄
@@ -100,6 +111,7 @@ pub async fn spawn_structured_session(
         "结构化会话已启动: session={}, agent={}, permission_mode={}",
         session_id, cfg.agent_path, cfg.permission_mode
     );
+    emit_session_status(&app, &session_id, "running");
 
     // 会话的 Agent 适配器（多 Agent 适配）：驱动层只依赖 trait 与归一化事件
     let adapter = agent_adapter::adapter_for(&cfg.agent_path);
@@ -197,9 +209,18 @@ pub async fn spawn_structured_session(
             if let Err(e) = db.finish_agent_session(&session_id, status, Some(code)) {
                 warn!("会话终态回写失败: session={}, err={}", session_id, e);
             }
+            // P1-T3：会话终态回写关联任务（推状态 + 回填 actual_hours）
+            if status == "completed" {
+                match db.sync_task_from_session(&session_id) {
+                    Ok(true) => info!("会话 {} 完成，已推进关联任务状态", session_id),
+                    Ok(false) => {}
+                    Err(e) => warn!("会话→任务回写失败: session={}, err={}", session_id, e),
+                }
+            }
         }
 
         task_registry.lock().await.remove(&session_id);
+        emit_session_status(&task_app, &session_id, if code == 0 { "completed" } else { "failed" });
         emit(
             &task_app,
             events::NOTICE,

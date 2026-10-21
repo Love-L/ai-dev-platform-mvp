@@ -33,7 +33,6 @@ import AuditLog from "../AuditLog";
 import ImportExport from "../ImportExport";
 import SystemMonitor from "../SystemMonitor";
 import Settings from "../Settings";
-import Dashboard from "../Dashboard";
 
 const invokeMock = vi.mocked(invoke);
 
@@ -111,7 +110,7 @@ interface PageCase {
   element: ReactElement;
 }
 
-/** 覆盖 App.tsx 注册的全部路由页面，以及未挂载的 Dashboard 孤儿页面 */
+/** 覆盖 App.tsx 注册的全部路由页面 */
 const PAGES: PageCase[] = [
   { name: "Workspace", entry: "/", element: <Workspace /> },
   { name: "Projects", entry: "/projects", element: <Projects /> },
@@ -132,7 +131,6 @@ const PAGES: PageCase[] = [
   { name: "ImportExport", entry: "/import-export", element: <ImportExport /> },
   { name: "SystemMonitor", entry: "/system-monitor", element: <SystemMonitor /> },
   { name: "Settings", entry: "/settings", element: <Settings /> },
-  { name: "Dashboard（未挂载）", entry: "/dashboard", element: <Dashboard /> },
 ];
 
 describe("页面渲染冒烟测试", () => {

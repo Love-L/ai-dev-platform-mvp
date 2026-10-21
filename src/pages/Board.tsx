@@ -2,11 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Search } from "lucide-react";
 import type { Task } from "../lib/types";
-import { useTasksStore } from "../stores";
+import { useTasksStore, useRequirementsStore, useProjectsStore } from "../stores";
 import { TaskTypeBadge, PriorityBadge } from "../components/Badges";
 import TaskForm from "../components/TaskForm";
-import { createTask } from "../lib/tauri";
+import { createTask, getTaskTransitions } from "../lib/tauri";
 import { showToast } from "../components/Toast";
+
+/** 任务状态文案（拖拽预检提示用） */
+const TASK_STATUS_LABEL: Record<string, string> = {
+  pending: "待处理",
+  in_progress: "进行中",
+  blocked: "阻塞",
+  completed: "已完成",
+};
 
 const COLUMNS = [
   { id: "pending", label: "待开发", dotColor: "bg-gray-400" },
@@ -25,14 +33,32 @@ const TASK_TYPES = [
 export default function Board() {
   const navigate = useNavigate();
   const { tasks, loading, fetchTasks, updateStatus, removeTask } = useTasksStore();
+  const { requirements, fetchRequirements } = useRequirementsStore();
+  const { projects, fetchProjects } = useProjectsStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("");
+  const [projectFilter, setProjectFilter] = useState<string>("");
+
+  // P1-T5：任务状态机以后端下发为唯一真源（拖拽预检用）
+  const [taskTransitions, setTaskTransitions] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     fetchTasks();
+    fetchRequirements();
+    fetchProjects();
+    getTaskTransitions()
+      .then((table) => {
+        if (Object.keys(table).length > 0) setTaskTransitions(table);
+      })
+      .catch(() => {});
   }, []);
+
+  /** requirement_id → project_id（任务经需求归属项目） */
+  const reqProjectMap: Record<string, string | undefined> = Object.fromEntries(
+    requirements.map((r) => [r.id, r.project_id]),
+  );
 
   function handleDragStart(task: Task) {
     setDraggedTask(task);
@@ -48,6 +74,16 @@ export default function Board() {
       setDraggedTask(null);
       return;
     }
+    // P1-T5：落盘前预检状态流转（后端表为准），非法流转直接提示而非拖过去再报错
+    const allowed = taskTransitions[draggedTask.status] ?? [];
+    if (Object.keys(taskTransitions).length > 0 && !allowed.includes(status)) {
+      showToast(
+        "error",
+        `不允许从「${TASK_STATUS_LABEL[draggedTask.status] ?? draggedTask.status}」拖到「${TASK_STATUS_LABEL[status] ?? status}」`,
+      );
+      setDraggedTask(null);
+      return;
+    }
     try {
       await updateStatus(draggedTask.id, status);
       setDraggedTask(null);
@@ -57,13 +93,13 @@ export default function Board() {
     }
   }
 
-  async function handleCreate(data: any) {
+  async function handleCreate(data: Partial<Task>) {
     try {
       await createTask(
-        data.title,
-        undefined,
-        data.task_type,
-        data.priority,
+        data.title ?? "",
+        data.requirement_id,
+        data.task_type ?? "development",
+        data.priority ?? "P1",
         data.assignee,
         data.due_date,
         data.estimated_hours,
@@ -72,9 +108,11 @@ export default function Board() {
         data.tags,
         data.notes,
         data.description,
+        data.project_id,
       );
       setShowCreateModal(false);
       await fetchTasks();
+      showToast("success", data.requirement_id ? "任务已创建并关联需求" : "任务已创建");
     } catch (error) {
       console.error("创建任务失败:", error);
       showToast("error", `创建任务失败: ${error}`);
@@ -94,7 +132,10 @@ export default function Board() {
   const filteredTasks = tasks.filter((task) => {
     const matchSearch = !searchTerm || task.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchType = !typeFilter || task.task_type === typeFilter;
-    return matchSearch && matchType;
+    // 项目归属：任务直接字段 或 经需求关联
+    const taskProject = task.project_id || (task.requirement_id ? reqProjectMap[task.requirement_id] : undefined);
+    const matchProject = !projectFilter || taskProject === projectFilter;
+    return matchSearch && matchType && matchProject;
   });
 
   if (loading) {
@@ -149,6 +190,21 @@ export default function Board() {
             </option>
           ))}
         </select>
+        {projects.length > 0 && (
+          <select
+            value={projectFilter}
+            onChange={(e) => setProjectFilter(e.target.value)}
+            className="select w-full sm:w-40"
+            title="按项目过滤任务（经任务直接字段或所属需求归属）"
+          >
+            <option value="">全部项目</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* 看板列 */}

@@ -160,6 +160,9 @@ pub struct AgentSession {
     pub skill_execution_summary: Option<String>,
     #[serde(default)]
     pub mcp_execution_summary: Option<String>,
+    /// 归档标记（1 = 已归档，默认列表不可见）
+    #[serde(default)]
+    pub archived: i64,
     // ==== 模块 16：会话交互与消息（F076–F086） ====
     /// CLI 侧会话 ID（由 `--session-id` 指定或从 `system.init` 回填），用于续接
     #[serde(default)]
@@ -546,3 +549,4 @@ pub struct ModelUsage {
     pub total_cost: f64,
     pub record_count: i64,
 }
+

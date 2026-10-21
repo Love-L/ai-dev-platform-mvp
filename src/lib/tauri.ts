@@ -63,48 +63,107 @@ import type {
 
 // ==================== 需求管理 ====================
 
-export async function createRequirement(
-  title: string,
-  description?: string,
-  priority: string = "P1",
-  projectId?: string,
-  module?: string,
-  source?: string,
-  sourceDetail?: string,
-  productOwner?: string,
-  developer?: string,
-  tester?: string,
-  businessPriority?: string,
-  estimatedEffort?: number,
-  tags?: string,
-  notes?: string,
-): Promise<Requirement> {
+/** create_requirement 入参（对象化，杜绝 14 个位置参数错位） */
+export interface CreateRequirementParams {
+  title: string;
+  description?: string;
+  priority?: string;
+  projectId?: string;
+  module?: string;
+  source?: string;
+  sourceDetail?: string;
+  productOwner?: string;
+  developer?: string;
+  tester?: string;
+  businessPriority?: string;
+  estimatedEffort?: number;
+  tags?: string;
+  notes?: string;
+}
+
+export async function createRequirement(params: CreateRequirementParams): Promise<Requirement> {
   return invoke("create_requirement", {
-    title,
-    description,
-    priority,
-    projectId,
-    module,
-    source,
-    sourceDetail,
-    productOwner,
-    developer,
-    tester,
-    businessPriority,
-    estimatedEffort,
-    tags,
-    notes,
+    title: params.title,
+    description: params.description,
+    priority: params.priority ?? "P1",
+    projectId: params.projectId,
+    module: params.module,
+    source: params.source,
+    sourceDetail: params.sourceDetail,
+    productOwner: params.productOwner,
+    developer: params.developer,
+    tester: params.tester,
+    businessPriority: params.businessPriority,
+    estimatedEffort: params.estimatedEffort,
+    tags: params.tags,
+    notes: params.notes,
   });
 }
 
-export async function listRequirements(status?: string): Promise<Requirement[]> {
-  const result: any = await invoke("list_requirements", { status });
-  // 后端返回 PagedResult<Requirement>，提取 items 数组
-  return result.items || result;
+/**
+ * 拉取需求列表（循环分页拉尽）。
+ *
+ * 后端 list_requirements 是分页命令（默认 page_size=20），此前包装器
+ * 只取第一页导致第 21 条起的需求在全站消失；这里递增 page 直到取完。
+ */
+export async function listRequirements(status?: string, projectId?: string): Promise<Requirement[]> {
+  const all: Requirement[] = [];
+  const pageSize = 200;
+  let page = 1;
+  for (;;) {
+    const result: { items?: Requirement[]; total?: number } | Requirement[] = await invoke("list_requirements", {
+      page,
+      pageSize,
+      status,
+      projectId,
+    });
+    const items = Array.isArray(result) ? result : (result.items ?? []);
+    all.push(...items);
+    const total = Array.isArray(result) ? undefined : result.total;
+    if (items.length < pageSize || (total !== undefined && all.length >= total)) break;
+    page += 1;
+    if (page > 500) break; // 安全阀：10 万条
+  }
+  return all;
 }
 
 export async function getRequirement(id: string): Promise<Requirement | null> {
   return invoke("get_requirement", { id });
+}
+
+/** PRD 快照版本（生成前自动留档，可整版恢复） */
+export interface PrdVersion {
+  id: string;
+  content: string;
+  created_at: string;
+}
+
+/** 列出某需求的 PRD 快照（倒序） */
+export async function listPrdVersions(requirementId: string): Promise<PrdVersion[]> {
+  return invoke("list_prd_versions", { requirementId });
+}
+
+/** 恢复指定 PRD 快照为当前 prd_content */
+export async function restorePrdVersion(requirementId: string, historyId: string): Promise<Requirement> {
+  return invoke("restore_prd_version", { requirementId, historyId });
+}
+
+/** 需求状态机全表（后端唯一真源下发，取代前端复刻） */
+export async function getRequirementTransitions(): Promise<Record<string, string[]>> {
+  return invoke("get_requirement_transitions");
+}
+
+/** LLM 拆解出的候选任务 */
+export interface BreakdownTask {
+  title: string;
+  description: string;
+  task_type: string;
+  priority: string;
+}
+
+/** 按需求+PRD 生成候选任务清单（仅返回，不落库） */
+export async function generateTaskBreakdown(requirementId: string): Promise<BreakdownTask[]> {
+  return invoke("generate_task_breakdown", { requirementId });
 }
 
 export async function updateRequirement(
@@ -126,6 +185,8 @@ export async function updateRequirement(
     estimatedEffort?: number;
     tags?: string;
     notes?: string;
+    /** JSON 数组字符串，附件路径列表 */
+    attachments?: string;
   },
 ): Promise<void> {
   return invoke("update_requirement", { id, ...updates });
@@ -195,6 +256,7 @@ export async function createTask(
   tags?: string,
   notes?: string,
   description?: string,
+  projectId?: string,
 ): Promise<Task> {
   return invoke("create_task", {
     title,
@@ -209,6 +271,7 @@ export async function createTask(
     tags,
     notes,
     description,
+    projectId,
   });
 }
 
@@ -239,6 +302,11 @@ export async function updateTask(
     due_date?: string;
     tags?: string;
     project_id?: string;
+    /** P0-T2：扩展字段可回改（此前创建后即死数据） */
+    estimated_hours?: number;
+    priority_level?: string;
+    blocked_reason?: string;
+    notes?: string;
   },
 ): Promise<void> {
   // Tauri 命令参数按 camelCase 匹配；同时携带 snake_case 键以兼容历史行为
@@ -248,7 +316,15 @@ export async function updateTask(
     taskType: updates.task_type,
     dueDate: updates.due_date,
     projectId: updates.project_id,
+    estimatedHours: updates.estimated_hours,
+    priorityLevel: updates.priority_level,
+    blockedReason: updates.blocked_reason,
   });
+}
+
+/** 需求状态机全表（后端唯一真源下发） */
+export async function getTaskTransitions(): Promise<Record<string, string[]>> {
+  return invoke("get_task_transitions");
 }
 
 export async function listTasksByProject(projectId: string): Promise<Task[]> {
@@ -281,9 +357,21 @@ export async function discoverAgents(): Promise<Agent[]> {
 
 /**
  * Agent 状态治理：进程存活对账 + 二进制有效性复核，返回复核后的列表（F021）。
+ *
+ * P1-A2 起复核会真实执行 `--version`（带超时），可发现"文件在但已损坏"的二进制。
  */
 export async function verifyAgents(): Promise<Agent[]> {
   return invoke("verify_agents");
+}
+
+/** 手动添加 Agent（自定义路径，后端真实执行 --version 验证） */
+export async function addAgent(binaryPath: string, displayName?: string): Promise<Agent> {
+  return invoke("add_agent", { binaryPath, displayName });
+}
+
+/** 删除 Agent 记录（有运行中会话时会被拒绝） */
+export async function deleteAgent(id: string): Promise<void> {
+  return invoke("delete_agent", { id });
 }
 
 // ==================== 会话交互与消息（模块 16） ====================
@@ -359,8 +447,13 @@ export async function getAgents(): Promise<Agent[]> {
   return invoke("get_agents");
 }
 
-export async function startAgent(agentPath: string, taskId?: string): Promise<AgentSession> {
-  return invoke("start_agent", { agentPath, taskId });
+export async function startAgent(
+  agentPath: string,
+  taskId?: string,
+  workDir?: string,
+  model?: string,
+): Promise<AgentSession> {
+  return invoke("start_agent", { agentPath, taskId, workDir, model });
 }
 
 export async function createSessionFromTask(taskId: string): Promise<AgentSession> {
@@ -386,8 +479,49 @@ export async function stopAgent(sessionId: string): Promise<void> {
   return invoke("stop_agent", { sessionId });
 }
 
-export async function getAgentSessions(agentId?: string): Promise<AgentSession[]> {
-  return invoke("get_agent_sessions", { agentId });
+export async function getAgentSessions(agentId?: string, includeArchived?: boolean): Promise<AgentSession[]> {
+  return invoke("get_agent_sessions", { agentId, includeArchived });
+}
+
+/** 单查会话（详情页避免全量拉取列表） */
+export async function getAgentSession(sessionId: string): Promise<AgentSession | null> {
+  return invoke("get_agent_session", { sessionId });
+}
+
+/** 重命名会话 */
+export async function renameAgentSession(sessionId: string, title: string): Promise<void> {
+  return invoke("rename_agent_session", { sessionId, title });
+}
+
+/** 归档 / 取消归档会话（归档后默认列表隐藏，数据保留） */
+export async function setAgentSessionArchived(sessionId: string, archived: boolean): Promise<void> {
+  return invoke("set_agent_session_archived", { sessionId, archived });
+}
+
+/** 删除会话（级联清理消息 / 执行日志 / Token 记录） */
+export async function deleteAgentSession(sessionId: string): Promise<void> {
+  return invoke("delete_agent_session", { sessionId });
+}
+
+/** 导出会话为 Markdown，返回写入路径 */
+export async function exportAgentSession(sessionId: string, outPath?: string): Promise<string> {
+  return invoke("export_agent_session", { sessionId, outPath });
+}
+
+/**
+ * 强制重建：后端先中断运行中进程、等注册表释放，再以新模式/新白名单重建。
+ *
+ * 取代前端"轮询正在运行错误"的 hack。
+ */
+export async function forceRebuildSession(params: {
+  sessionId: string;
+  mode?: string;
+  permissionMode?: string;
+  model?: string;
+  allowedTools?: string[];
+  resendLast?: boolean;
+}): Promise<AgentSession> {
+  return invoke("force_rebuild_session", params);
 }
 
 // ==================== Token追踪 ====================
@@ -576,8 +710,36 @@ export async function gitGetStatus(
   return invoke("git_get_status", { workDir });
 }
 
-export async function gitGetDiff(workDir: string, filePath?: string): Promise<string> {
-  return invoke("git_get_diff", { workDir, filePath });
+export async function gitGetDiff(workDir: string, filePath?: string, commitHash?: string): Promise<string> {
+  return invoke("git_get_diff", { workDir, filePath, commitHash });
+}
+
+export interface GitBranchesResult {
+  current: string;
+  branches: string[];
+}
+
+/** 列出本地分支（含当前分支） */
+export async function gitListBranches(workDir: string): Promise<GitBranchesResult> {
+  return invoke("git_list_branches", { workDir });
+}
+
+/** 真实提交计数（git rev-list，非 log 窗口估算） */
+export async function gitCountCommits(workDir: string): Promise<{ total: number; today: number; week: number }> {
+  return invoke("git_count_commits", { workDir });
+}
+
+/** 切换分支 */
+export async function gitSwitchBranch(workDir: string, branch: string): Promise<{ branch: string; message: string }> {
+  return invoke("git_switch_branch", { workDir, branch });
+}
+
+/** 列出指定提交涉及的文件（name-status） */
+export async function gitShowFiles(
+  workDir: string,
+  commitHash: string,
+): Promise<Array<{ status: string; path: string }>> {
+  return invoke("git_show_files", { workDir, commitHash });
 }
 
 export async function gitCreateCommit(
@@ -610,9 +772,26 @@ export async function updateProject(
     description?: string;
     key?: string;
     status?: string;
+    startDate?: string;
+    endDate?: string;
+    ownerId?: string;
   },
 ): Promise<void> {
   return invoke("update_project", { id, ...updates });
+}
+
+/** 项目总览聚合行（列表页进度条） */
+export interface ProjectOverviewRow {
+  project_id: string;
+  req_total: number;
+  req_completed: number;
+  task_total: number;
+  task_completed: number;
+}
+
+/** 一次性聚合全部项目的 需求/任务 计数 */
+export async function getProjectsOverview(): Promise<ProjectOverviewRow[]> {
+  return invoke("get_projects_overview");
 }
 
 export async function deleteProject(id: string): Promise<void> {

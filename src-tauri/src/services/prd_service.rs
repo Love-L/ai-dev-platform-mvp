@@ -162,7 +162,9 @@ impl<'a> PrdService<'a> {
 
     /// 解析生成 PRD 所需的上下文。
     ///
-    /// Skill 解析优先级：显式 `skill_id` → 项目默认 Skill → 内置默认模板（`None`）。
+    /// Skill 解析优先级：显式 `skill_id` → **项目环节配置（stage=prd_generation）** →
+    /// 项目默认 Skill → 内置默认模板（`None`）。
+    /// 环节配置此前为"配置了不生效"的孤岛（P0-S1 接通）。
     /// 这里取完整 Skill 记录而非仅模板，便于日志写入真实的 `skill_type`。
     async fn resolve_context(
         &self,
@@ -185,10 +187,23 @@ impl<'a> PrdService<'a> {
         let resolved_id = if let Some(sid) = skill_id {
             Some(sid.to_string())
         } else if !requirement.project_id.is_empty() {
-            debug!("查找项目 {} 的默认Skill", requirement.project_id);
-            db.list_project_skills(&requirement.project_id)
+            // 环节配置（prd_generation）优先于项目默认 Skill
+            let stage_skill = db
+                .get_stage_skill_for_requirement(&requirement.project_id, "prd_generation")
                 .ok()
-                .and_then(|ps| ps.into_iter().find(|ps| ps.is_default).map(|ps| ps.skill_id))
+                .flatten();
+            if stage_skill.is_some() {
+                debug!(
+                    "命中项目 {} 的 PRD 环节 Skill 配置",
+                    requirement.project_id
+                );
+            }
+            stage_skill.or_else(|| {
+                debug!("查找项目 {} 的默认Skill", requirement.project_id);
+                db.list_project_skills(&requirement.project_id)
+                    .ok()
+                    .and_then(|ps| ps.into_iter().find(|ps| ps.is_default).map(|ps| ps.skill_id))
+            })
         } else {
             None
         };
@@ -287,6 +302,11 @@ impl<'a> PrdService<'a> {
 
         {
             let db = self.db.lock().await;
+
+            // 覆盖前留一版快照（action=prd_snapshot，new_value=本版全文），重新生成不再是数据丢失
+            if let Err(e) = db.insert_requirement_history(requirement_id, "prd_snapshot", None, Some(prd_content)) {
+                tracing::error!("写入PRD快照失败（不阻断主流程）: {}", e);
+            }
 
             db.update_requirement(requirement_id, None, None, None, None, Some(prd_content))
                 .map_err(|e| {

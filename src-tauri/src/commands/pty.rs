@@ -88,6 +88,7 @@ pub async fn pty_attach(
 #[tauri::command]
 pub async fn pty_reconnect(
     state: State<'_, AppState>,
+    app: tauri::AppHandle,
     db_session_id: String,
 ) -> Result<String, AppError> {
     if let Some(pty_id) = state
@@ -162,7 +163,8 @@ pub async fn pty_reconnect(
         db.restart_agent_session(&db_session_id)
             .map_err(|e| format!("更新会话状态失败: {}", e))?;
     }
+    session_driver::emit_session_status(&app, &db_session_id, "running");
 
-    watch_terminal_session_exit(state.inner(), pty_id.clone(), db_session_id);
+    watch_terminal_session_exit(state.inner(), app, pty_id.clone(), db_session_id);
     Ok(pty_id)
 }

@@ -40,6 +40,9 @@ const en: Record<string, string> = {
 
   // 设置页
   "settings.title": "Settings",
+  "settings.interface": "Interface",
+  "settings.language": "Language",
+  "settings.languageHint": "Untranslated text falls back to Chinese",
   "settings.save": "Save",
   "settings.saving": "Saving…",
   "settings.apiKey": "Claude API Key",

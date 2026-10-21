@@ -52,6 +52,7 @@ impl<'a> ProjectService<'a> {
     }
 
     /// 更新项目
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_project(
         &self,
         id: &str,
@@ -59,10 +60,13 @@ impl<'a> ProjectService<'a> {
         description: Option<&str>,
         key: Option<&str>,
         status: Option<&str>,
+        start_date: Option<&str>,
+        end_date: Option<&str>,
+        owner_id: Option<&str>,
     ) -> Result<(), String> {
         debug!("更新项目: id={}", id);
         let db = self.db.lock().await;
-        db.update_project(id, name, description, key, status)
+        db.update_project(id, name, description, key, status, start_date, end_date, owner_id)
             .map_err(|e| {
                 tracing::error!("更新项目失败: {}", e);
                 format!("更新项目失败: {}", e)

@@ -27,6 +27,84 @@ import {
 } from "../lib/tauri";
 import { showToast } from "../components/Toast";
 
+/** 模板可用变量（生成 PRD 时由 llm::build_prd_prompt 替换） */
+const TEMPLATE_VARS = [
+  { key: "{title}", desc: "需求标题" },
+  { key: "{description}", desc: "需求描述" },
+  { key: "{priority}", desc: "优先级" },
+];
+
+/** 示例需求值（预览用） */
+const PREVIEW_SAMPLE: Record<string, string> = {
+  "{title}": "用户登录模块",
+  "{description}": "支持手机号与邮箱两种登录方式，含验证码校验。",
+  "{priority}": "P1",
+};
+
+/**
+ * 模板编辑区（P1-S2）：变量插入按钮 + Markdown 预览。
+ * 创建/编辑弹窗共用。
+ */
+function TemplateEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [preview, setPreview] = useState(false);
+
+  function insertVar(key: string) {
+    // 光标处插入（简单追加到末尾；textarea 无 ref 传递时退化为 append）
+    onChange(value + key);
+  }
+
+  const rendered = preview
+    ? TEMPLATE_VARS.reduce((acc, v) => acc.split(v.key).join(PREVIEW_SAMPLE[v.key]), value)
+    : value;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label className="block text-sm font-medium text-gray-700">模板内容 *</label>
+        <button
+          type="button"
+          onClick={() => setPreview(!preview)}
+          className="text-xs px-2 py-1 rounded hover:bg-gray-100 text-gray-500"
+          title="用示例需求值渲染模板，检查变量替换效果"
+        >
+          {preview ? "返回编辑" : "预览效果"}
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-1.5 mb-1.5">
+        {TEMPLATE_VARS.map((v) => (
+          <button
+            key={v.key}
+            type="button"
+            onClick={() => insertVar(v.key)}
+            className="text-xs px-2 py-0.5 rounded-full font-mono hover:bg-blue-50 hover:text-blue-600"
+            style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}
+            title={`插入 ${v.desc}变量`}
+          >
+            {v.key}
+            <span className="ml-1 opacity-60">{v.desc}</span>
+          </button>
+        ))}
+      </div>
+      {preview ? (
+        <div className="w-full px-3 py-2 border rounded-lg font-mono text-sm whitespace-pre-wrap bg-gray-50 max-h-[280px] overflow-y-auto">
+          {rendered || "(空模板)"}
+        </div>
+      ) : (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+          rows={12}
+          placeholder="输入模板内容，可用 {title} {description} {priority} 变量"
+        />
+      )}
+      <p className="text-[11px] mt-1" style={{ color: "var(--color-text-tertiary)" }}>
+        仅支持 {`{title} {description} {priority}`} 三个变量；写错的变量名不会报错，会原样进入 Prompt。
+      </p>
+    </div>
+  );
+}
+
 export default function SkillManagement() {
   const navigate = useNavigate();
   const [skills, setSkills] = useState<PrdSkill[]>([]);
@@ -416,16 +494,7 @@ export default function SkillManagement() {
                   placeholder="输入描述（可选）"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">模板内容 *</label>
-                <textarea
-                  value={formData.template}
-                  onChange={(e) => setFormData({ ...formData, template: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-                  rows={12}
-                  placeholder="输入模板内容"
-                />
-              </div>
+              <TemplateEditor value={formData.template} onChange={(v) => setFormData({ ...formData, template: v })} />
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50">
               <button
@@ -476,15 +545,7 @@ export default function SkillManagement() {
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">模板内容</label>
-                <textarea
-                  value={formData.template}
-                  onChange={(e) => setFormData({ ...formData, template: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-                  rows={12}
-                />
-              </div>
+              <TemplateEditor value={formData.template} onChange={(v) => setFormData({ ...formData, template: v })} />
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50">
               <button

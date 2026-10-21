@@ -70,6 +70,28 @@ pub fn set_agent_status(conn: &Connection, id: &str, status: &str) -> Result<()>
     Ok(())
 }
 
+/// 删除 Agent 记录（P1-A2：清理失效/误检记录）。
+///
+/// 有运行中会话时拒绝删除，避免孤儿进程引用。
+pub fn delete_agent(conn: &Connection, id: &str) -> Result<()> {
+    let running: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM agent_sessions WHERE agent_id = ?1 AND status = 'running'",
+        params![id],
+        |r| r.get(0),
+    )?;
+    if running > 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows); // 上层翻译为友好错误
+    }
+
+    // 保留历史会话，只解除外键引用后删除 Agent
+    conn.execute(
+        "UPDATE agent_sessions SET agent_id = NULL WHERE agent_id = ?1",
+        params![id],
+    )?;
+    conn.execute("DELETE FROM agents WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
 pub fn create_agent_session(conn: &Connection, agent_id: &str, task_id: Option<&str>) -> Result<AgentSession> {
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
@@ -111,6 +133,7 @@ pub fn create_agent_session(conn: &Connection, agent_id: &str, task_id: Option<&
         model: None,
         permission_allowlist: None,
         last_event_at: None,
+        archived: 0,
         agent_name: None,
         task_title: None,
     })
@@ -199,6 +222,7 @@ pub fn create_agent_session_full(conn: &Connection, spec: &NewAgentSession) -> R
         model: spec.model.clone(),
         permission_allowlist: None,
         last_event_at: Some(now),
+        archived: 0,
         agent_name: None,
         task_title: None,
     })
@@ -368,6 +392,90 @@ pub fn finish_agent_session(
     Ok(())
 }
 
+/// 会话终态 → 任务回写（P1-T3 + P1-T6）。
+///
+/// 会话 `completed` 且关联了任务（`related_task_id` 优先）时：
+/// - 任务仍处于 `pending`/`in_progress` → 推进到 `completed`
+/// - 把会话时长（小时）累加进 `tasks.actual_hours`
+///
+/// 无论会话终态如何，都会把该任务在 `token_usage` 表的用量汇总
+/// 回写到 `tasks.token_usage`（P1-T6：消除僵尸字段）。
+///
+/// 会话 `failed` 不动任务状态（失败不代表工作全无产出，交由用户判断）。
+/// 返回是否发生了任务状态推进。
+pub fn sync_task_from_session(conn: &Connection, session_id: &str) -> Result<bool> {
+    let row = conn.query_row(
+        "SELECT status, related_task_id, task_id, duration_seconds
+         FROM agent_sessions WHERE id = ?1",
+        params![session_id],
+        |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, Option<String>>(1)?,
+                r.get::<_, Option<String>>(2)?,
+                r.get::<_, Option<i64>>(3)?,
+            ))
+        },
+    );
+
+    let (session_status, related_task_id, task_id, duration_seconds) = match row {
+        Ok(v) => v,
+        // 会话不存在：静默跳过
+        Err(_) => return Ok(false),
+    };
+
+    let task_id = match related_task_id.or(task_id) {
+        Some(tid) if !tid.is_empty() => tid,
+        _ => return Ok(false),
+    };
+
+    // 回填实际工时（会话时长折算小时，累加）
+    if let Some(secs) = duration_seconds {
+        if secs > 0 {
+            let hours = secs as f64 / 3600.0;
+            conn.execute(
+                "UPDATE tasks
+                 SET actual_hours = COALESCE(actual_hours, 0) + ?1,
+                     updated_at = ?2
+                 WHERE id = ?3",
+                params![hours, chrono::Utc::now().to_rfc3339(), task_id],
+            )?;
+        }
+    }
+
+    // P1-T6：汇总该任务的 Token 用量回写（input+output+cache+thinking）
+    // 无论会话终态如何都执行（失败的会话同样消耗了 Token）
+    let total: i64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens + thinking_tokens), 0)
+             FROM token_usage WHERE task_id = ?1",
+            params![task_id],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    if total > 0 {
+        conn.execute(
+            "UPDATE tasks SET token_usage = ?1, updated_at = ?2 WHERE id = ?3",
+            params![total, chrono::Utc::now().to_rfc3339(), task_id],
+        )?;
+    }
+
+    if session_status != "completed" {
+        return Ok(false);
+    }
+
+    // 仅推进 pending/in_progress → completed；blocked/completed 不动
+    let now = chrono::Utc::now().to_rfc3339();
+    let changed = conn.execute(
+        "UPDATE tasks
+         SET status = 'completed', updated_at = ?1
+         WHERE id = ?2 AND status IN ('pending', 'in_progress')",
+        params![now, task_id],
+    )?;
+
+    Ok(changed > 0)
+}
+
 /// 应用启动时的会话对账。
 ///
 /// 进程随应用退出而消失，因此数据库里处于 `running` 的会话必定已无真实进程；
@@ -403,7 +511,8 @@ const SESSION_COLUMNS: &str = "agent_sessions.id, agent_sessions.agent_id, agent
      agent_sessions.mcp_execution_summary, agent_sessions.cli_session_id, \
      agent_sessions.work_dir, agent_sessions.agent_path, agent_sessions.mode, \
      agent_sessions.view, agent_sessions.permission_mode, agent_sessions.model, \
-     agent_sessions.permission_allowlist, agent_sessions.last_event_at";
+     agent_sessions.permission_allowlist, agent_sessions.last_event_at, \
+     agent_sessions.archived";
 
 /// 回填列（Agent 显示名 / 任务标题）：非 agent_sessions 本表字段，查询时 JOIN 获取
 const SESSION_JOIN_COLUMNS: &str = ", agents.display_name, tasks.title";
@@ -444,8 +553,9 @@ fn map_session_row(row: &rusqlite::Row<'_>) -> Result<AgentSession> {
         model: row.get(27)?,
         permission_allowlist: row.get(28)?,
         last_event_at: row.get(29)?,
-        agent_name: row.get(30)?,
-        task_title: row.get(31)?,
+        archived: row.get(30)?,
+        agent_name: row.get(31)?,
+        task_title: row.get(32)?,
     })
 }
 
@@ -454,15 +564,26 @@ pub fn count_running_sessions(conn: &Connection) -> Result<i64> {
     conn.query_row("SELECT COUNT(*) FROM agent_sessions WHERE status = 'running'", [], |r| r.get(0))
 }
 
-pub fn get_agent_sessions(conn: &Connection, agent_id: Option<&str>) -> Result<Vec<AgentSession>> {
+pub fn get_agent_sessions(
+    conn: &Connection,
+    agent_id: Option<&str>,
+    include_archived: bool,
+) -> Result<Vec<AgentSession>> {
     let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
     let mut sql = format!(
         "SELECT {SESSION_COLUMNS} {SESSION_JOIN_COLUMNS} FROM agent_sessions {SESSION_JOINS}"
     );
 
+    let mut wheres: Vec<String> = Vec::new();
     if let Some(id) = agent_id {
-        sql.push_str(" WHERE agent_sessions.agent_id = ?");
+        wheres.push("agent_sessions.agent_id = ?".to_string());
         params.push(Box::new(id.to_string()));
+    }
+    if !include_archived {
+        wheres.push("(agent_sessions.archived IS NULL OR agent_sessions.archived = 0)".to_string());
+    }
+    if !wheres.is_empty() {
+        sql.push_str(&format!(" WHERE {}", wheres.join(" AND ")));
     }
 
     sql.push_str(" ORDER BY agent_sessions.started_at DESC");
@@ -471,4 +592,40 @@ pub fn get_agent_sessions(conn: &Connection, agent_id: Option<&str>) -> Result<V
     let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), map_session_row)?;
 
     rows.collect()
+}
+
+/// 重命名会话
+pub fn rename_session(conn: &Connection, id: &str, title: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE agent_sessions SET title = ?1 WHERE id = ?2",
+        params![title, id],
+    )?;
+    Ok(())
+}
+
+/// 归档 / 取消归档会话（归档后默认列表不可见，数据保留）
+pub fn set_session_archived(conn: &Connection, id: &str, archived: bool) -> Result<()> {
+    conn.execute(
+        "UPDATE agent_sessions SET archived = ?1 WHERE id = ?2",
+        params![if archived { 1 } else { 0 }, id],
+    )?;
+    Ok(())
+}
+
+/// 级联删除会话：消息、Skill/MCP 执行日志、Token 记录、最后删除会话本体。
+///
+/// 运行中的进程应由命令层先终止；本函数只负责数据清理。
+pub fn delete_session_cascade(conn: &Connection, id: &str) -> Result<()> {
+    conn.execute("DELETE FROM session_messages WHERE session_id = ?1", params![id])?;
+    conn.execute(
+        "DELETE FROM skill_execution_logs WHERE session_id = ?1",
+        params![id],
+    )?;
+    conn.execute(
+        "DELETE FROM mcp_execution_logs WHERE session_id = ?1",
+        params![id],
+    )?;
+    conn.execute("DELETE FROM token_usage WHERE session_id = ?1", params![id])?;
+    conn.execute("DELETE FROM agent_sessions WHERE id = ?1", params![id])?;
+    Ok(())
 }

@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { X, Save, Loader2 } from "lucide-react";
-import type { Task } from "../lib/types";
+import type { Task, Requirement, Project } from "../lib/types";
 
 interface TaskFormProps {
   task?: Task;
+  /** 创建模式：提供后显示「归属」选择（任务挂到需求/项目，纳入统计口径） */
+  requirements?: Requirement[];
+  projects?: Project[];
   onSubmit: (data: Partial<Task>) => Promise<void>;
   onCancel: () => void;
 }
 
-export default function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
+export default function TaskForm({ task, requirements, projects, onSubmit, onCancel }: TaskFormProps) {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
@@ -23,7 +26,20 @@ export default function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
     blocked_reason: task?.blocked_reason || "",
     tags: task?.tags || "",
     notes: task?.notes || "",
+    // 归属：任务经需求归属项目（项目统计按 requirement JOIN 口径）
+    requirement_id: task?.requirement_id || "",
+    project_id: task?.project_id || "",
   });
+
+  /** 选中需求时自动带出其所属项目 */
+  function handleRequirementChange(reqId: string) {
+    const req = requirements?.find((r) => r.id === reqId);
+    setFormData({
+      ...formData,
+      requirement_id: reqId,
+      project_id: req?.project_id || (reqId ? "" : formData.project_id),
+    });
+  }
 
   function validate(): boolean {
     const errs: Record<string, string> = {};
@@ -62,6 +78,8 @@ export default function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
       await onSubmit({
         ...formData,
         estimated_hours: formData.estimated_hours ? Number(formData.estimated_hours) : undefined,
+        requirement_id: formData.requirement_id || undefined,
+        project_id: formData.project_id || undefined,
       });
     } finally {
       setLoading(false);
@@ -89,6 +107,44 @@ export default function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="modal-body space-y-4 overflow-y-auto max-h-[calc(90vh-140px)]">
+          {/* 归属：需求/项目（创建模式且有可选数据时显示） */}
+          {!task && ((requirements?.length ?? 0) > 0 || (projects?.length ?? 0) > 0) && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">所属需求</label>
+                <select
+                  value={formData.requirement_id}
+                  onChange={(e) => handleRequirementChange(e.target.value)}
+                  className="select"
+                  title="挂到需求后，任务会纳入该需求/项目的完成率统计"
+                >
+                  <option value="">不关联需求</option>
+                  {(requirements ?? []).map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">所属项目</label>
+                <select
+                  value={formData.project_id}
+                  onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+                  className="select"
+                  title="未选需求时可直接归属项目"
+                >
+                  <option value="">不关联项目</option>
+                  {(projects ?? []).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           {/* 标题 */}
           <div>
             <label className="label">

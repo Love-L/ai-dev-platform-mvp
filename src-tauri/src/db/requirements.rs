@@ -83,17 +83,33 @@ pub fn list_requirements(conn: &Connection, status_filter: Option<&str>) -> Resu
     rows.collect()
 }
 
-pub fn list_requirements_paged(conn: &Connection, page: u32, limit: u32, status_filter: Option<&str>) -> Result<crate::pagination::PagedResult<Requirement>> {
+pub fn list_requirements_paged(
+    conn: &Connection,
+    page: u32,
+    limit: u32,
+    status_filter: Option<&str>,
+    project_filter: Option<&str>,
+) -> Result<crate::pagination::PagedResult<Requirement>> {
     let sql_base = "SELECT id, project_id, title, description, priority, status, prd_content, requirement_type, target_version, due_date, tags, module, source, source_detail, product_owner, developer, tester, business_priority, estimated_effort, actual_effort, attachments, notes, created_at, updated_at FROM requirements";
     let count_base = "SELECT COUNT(*) FROM requirements";
     let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
 
-    let (where_clause, count_where) = if let Some(status) = status_filter {
+    // 动态 WHERE：status / project_id 可叠加
+    let mut conditions: Vec<&str> = Vec::new();
+    if let Some(status) = status_filter {
         params.push(Box::new(status.to_string()));
-        (" WHERE status = ?", " WHERE status = ?")
+        conditions.push("status = ?");
+    }
+    if let Some(project_id) = project_filter {
+        params.push(Box::new(project_id.to_string()));
+        conditions.push("project_id = ?");
+    }
+    let where_clause = if conditions.is_empty() {
+        String::new()
     } else {
-        ("", "")
+        format!(" WHERE {}", conditions.join(" AND "))
     };
+    let count_where = where_clause.clone();
 
     // 获取总数
     let total: u64 = if !count_where.is_empty() {
@@ -105,7 +121,7 @@ pub fn list_requirements_paged(conn: &Connection, page: u32, limit: u32, status_
 
     // 获取分页数据
     let offset = (page - 1) * limit;
-    let sql = format!("{}{} ORDER BY created_at DESC LIMIT {} OFFSET {}", sql_base, where_clause, limit, offset);
+    let sql = format!("{}{} ORDER BY created_at DESC LIMIT {} OFFSET {}", sql_base, count_where, limit, offset);
 
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
@@ -140,6 +156,23 @@ pub fn list_requirements_paged(conn: &Connection, page: u32, limit: u32, status_
     let items: Vec<Requirement> = rows.collect::<Result<Vec<_>, _>>()?;
 
     Ok(crate::pagination::PagedResult::new(items, total, page, limit))
+}
+
+/// 各项目需求数 `(project_id, total, completed)`（工作台/项目列表聚合）
+pub fn count_requirements_by_project(conn: &Connection) -> Result<Vec<(String, i64, i64)>> {
+    let mut stmt = conn.prepare(
+        "SELECT project_id,
+                COUNT(*),
+                COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0)
+         FROM requirements
+         GROUP BY project_id",
+    )?;
+
+    let rows = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?))
+    })?;
+
+    rows.collect()
 }
 
 pub fn get_requirement(conn: &Connection, id: &str) -> Result<Option<Requirement>> {
